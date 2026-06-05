@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "hitwtimer",
+	"version": "${version}",
+	"name": "HITWtimer",
+	"description": "HITW trap timer with HUD, multi traplist, subtitle detection, configurable prep time and more. Client only.",
+	"authors": [
+		"KCl"
+	],
+	"license": "CC0-1.0",
+	"icon": "assets/hitwtimer/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			{
+				"value": "com.kcl.hitwtimer.HITWtimer",
+				"adapter": "kotlin"
+			}
+		],
+		"client": [
+			{
+				"value": "com.kcl.hitwtimer.client.HITWtimerClient",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"hitwtimer.mixins.json",
+		{
+			"config": "hitwtimer.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.2",
+		"minecraft": "~26.1.2",
+		"java": ">=25",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	}
+}

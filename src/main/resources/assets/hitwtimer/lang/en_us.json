@@ -1,0 +1,9 @@
+{
+  "key.categories.hitwtimer": "HITWtimer",
+  "key.hitwtimer.toggle": "Toggle/Clear Timers",
+  "key.hitwtimer.edit": "HUD Edit Mode (drag+scroll)",
+  "key.hitwtimer.reload": "Reload Configs + Lists",
+
+  "commands.hitwtimer.reload": "HITWtimer configs reloaded",
+  "commands.hitwtimer.lists": "Active trap lists: %s"
+}

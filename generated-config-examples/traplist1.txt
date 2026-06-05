@@ -1,0 +1,64 @@
+# HITWtimer 陷阱列表: traplist1
+# 此文件只放陷阱定义。可在 overallconfig.txt 的 enabled_lists 中引用本文件名(不带.txt)
+# 运行时用 /hitwtimer enable traplist1 启用，disable 禁用。支持多个列表同时激活。
+
+# ==================== traplistconfig (本列表的状态 + 默认配置) ====================
+# 放在第一个 name= 之前
+# list status
+enabled=true
+description=经典HITW陷阱列表 / Classic HITW Trap List (示例)
+
+# 此列表的默认值（trap 未定义时使用）
+subtitle_preparation=true
+preparation_time=3.0
+preparation_color=#55FF55
+main_color=#FFFFFF
+start_sound=block.note_block.pling
+end_sound=block.note_block.bell
+source=SUBTITLE
+enabled=true
+
+# 检测默认 (可选)
+match_mode=CONTAINS
+case_sensitive=false
+
+# ==================== 陷阱配置 (Trap Configurations) ====================
+# 每个陷阱以 name= 开头
+# 必须: name= 、 pattern= 、和至少一个事件
+# 可选字段不填则使用上面的列表默认值（再回退 overallconfig）
+#
+# 重要：Preparation 准备阶段 **不需要** 在 events 中写！
+# 它由检测来源自动决定：
+# - subtitle 检测 + subtitle_preparation 允许 → 自动插入准备
+# - chat 检测 → 绝不插入准备
+#
+# 事件格式: eventname|time|color(可选)|sound(可选)
+# color 不填 → 使用本陷阱的 main_color
+#
+# 检测相关:
+#   pattern=...          (必填，匹配关键词，支持 a|b|c 作为OR)
+#   match_mode=CONTAINS/EQUALS/STARTS_WITH/REGEX
+#   case_sensitive=false
+
+name=falling sand
+enabled=true
+source=SUBTITLE
+subtitle_preparation=true
+main_color=#FFAA00
+start_sound=block.fire.extinguish
+end_sound=block.fire.extinguish
+pattern=falling sand|sand   # 支持|分隔多个匹配词 (必填)
+match_mode=CONTAINS
+case_sensitive=false
+events=
+  stop falling|10|#FF5500|entity.blaze.shoot
+  sands gone|5.0|
+
+# 你可以继续添加更多陷阱...
+# name=your_new_trap
+# enabled=true
+# pattern=你的关键词|english   # 必填
+# match_mode=CONTAINS
+# events=
+#   阶段1|1.0
+#   阶段2|2.5|#FF00FF|block.anvil.land

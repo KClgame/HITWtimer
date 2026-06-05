@@ -1,0 +1,9 @@
+{
+  "key.categories.hitwtimer": "HITW 计时器",
+  "key.hitwtimer.toggle": "切换/清除计时器",
+  "key.hitwtimer.edit": "HUD 编辑模式 (拖拽+滚轮)",
+  "key.hitwtimer.reload": "重新加载配置和列表",
+
+  "commands.hitwtimer.reload": "HITWtimer 配置已重新加载",
+  "commands.hitwtimer.lists": "当前激活的陷阱列表: %s"
+}
