@@ -1,0 +1,39 @@
+# HITWtimer Overall Config (overallconfig.txt) - Mod level settings
+# This is the top-level config for the entire mod.
+# List-specific defaults go in the header of each traplist*.txt
+# Per-trap settings go under each name= in traplist*.txt
+# Runtime list control via /hitwtimer enable/disable <list>
+
+# --- Master ---
+enabled=true
+
+# --- Lists ---
+enabled_lists=traplist1,testtraplist
+
+# --- Detection ---
+detect_subtitle=true
+detect_chat=true
+
+# --- Preparation defaults (fallbacks) ---
+subtitle_preparation=true
+preparation_time=3.0
+preparation_color=#FF55FF55
+main_color=#FFFFFFFF
+
+# --- HUD ---
+hud_x=0
+hud_y=0
+hud_scale=1
+render_background=true
+hud_background_color=#25000000
+hud_horizontal_padding=8
+hud_vertical_padding=6
+
+# --- Behavior ---
+auto_reload_keywords=hitw,hole in the wall,游戏开始
+
+# --- Misc ---
+debug=true
+
+# --- Dedup ---
+dedup_ms=3100

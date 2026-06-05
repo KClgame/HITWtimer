@@ -1,0 +1,101 @@
+# HITWtimer 陷阱列表
+# 此文件只放陷阱定义。可在 overallconfig.txt 的 enabled_lists 中引用本文件名(不带.txt)
+# 运行时用 /hitwtimer enable <name> 启用，disable 禁用。支持多个列表同时激活。
+
+# ==================== 陷阱配置模板 (Trap Configuration Template) ====================
+#
+# 说明 / Instructions:
+# 1. 每个陷阱必须以 name= 开头 (pattern= 也必填) / Every trap must start with name= (pattern= is also required)
+# 2. 所有参数都可以按需填写，不需要的可以删除 / All fields are optional except name and events
+# 3. events 阶段从上到下依次执行 / Events are executed from top to bottom in order
+#
+# 层级: overallconfig (mod) > traplistconfig (list defaults in traplist*.txt header) > trapconfig (per trap)
+#
+# 【参数详解 / Parameter Reference】
+# 必须 (Required):
+#   name=xxx                  陷阱唯一标识 (必填)
+#   pattern=...               检测匹配的字幕/聊天关键词 (必填，支持 | 分隔多个备选)
+#   events (下面的阶段行)     至少一个阶段 (必填)
+#
+# 可选 (Optional, 不填则使用本列表traplistconfig的默认, 再回退overall):
+#   enabled=true/false
+#   source=SUBTITLE/CHAT/BOTH
+#   subtitle_preparation=true/false   (false=严格无准备)
+#   start_sound=...
+#   end_sound=...
+#   main_color=#RRGGBB      陷阱默认事件颜色 (event没指定color时用)
+#   preparation_time=3.0    本陷阱准备时长 (覆盖list)
+#   preparation_color=#RRGGBB
+#
+# 检测相关 (Detection pattern & match mode):
+#   pattern=要匹配的字幕/聊天原文 (必填)
+#     支持 | 分隔多个关键词(OR): pattern=falling sand|sand
+#     REGEX 模式下 | 按正则本身含义
+#   match_mode=CONTAINS (默认,包含匹配) / EQUALS(完全相等) / STARTS_WITH / REGEX
+#   case_sensitive=false (默认, 不区分大小写; true 则严格大小写)
+#
+# 事件格式 (Event format):
+#   eventname|time|color(可选)|sound(可选)
+#   color不填 -> 用本trap的main_color
+#   示例:
+#     stop falling|10|#FF5500|entity.blaze.shoot
+#     sands gone|5.0|
+#
+# 重要说明 / Important Note:
+# Preparation（准备阶段） **不需要** 在 trap 的 events 中配置！
+# 它完全由检测来源自动决定：
+# - 来源是 subtitle 且检测到该 trap，并且 subtitle_preparation 允许（trap/list/global 三级，trap 的 false 严格优先）
+#   → 自动插入准备阶段（显示“准备”、使用 preparation_time、延迟 start_sound）
+# - 来源是 chat（非 subtitle）→ 永不插入准备阶段（preparationSeconds=0）
+# trap 的 events 只列出检测到后实际执行的阶段。
+#
+# 英文版说明 (English):
+# Required: name=, pattern=, events
+# Optional: fall back to traplistconfig defaults then overall.
+# Event: name|duration|color(optional)|sound(optional)
+#   color falls back to this trap's main_color
+# IMPORTANT: Do NOT put a 'Preparation' stage in your trap's events list.
+# Preparation is automatically handled ONLY for subtitle detections (based on subtitle_preparation setting).
+# Chat detections never have preparation phase.
+
+# --- traplistconfig: 本列表的状态和默认配置 (在第一个 name= 之前) ---
+# list status
+# enabled=true
+# description=这个列表的描述 / 分类名字 (用于显示或分类)
+#
+# defaults for traps in this list (if trap doesn't define, use these)
+# subtitle_preparation=true
+# preparation_time=3.0
+# preparation_color=#55FF55
+# main_color=#FFFFFF
+# start_sound=block.note_block.pling
+# end_sound=block.note_block.bell
+# source=SUBTITLE
+# enabled=true
+#
+# 检测默认 (可选):
+# match_mode=CONTAINS
+# case_sensitive=false
+# pattern=   (列表级默认较少用, 通常每个trap单独指定必填的pattern)
+
+# 在下面添加你的陷阱定义 (name= 开始一个新陷阱)
+# Add your trap definitions below (start each with name=)
+
+# ========== 示例陷阱 (Concrete Examples) ==========
+# 这些是完整可用的示例。你可以复制修改。
+# 注意: pattern 是每个 trap 的必填变量，用于检测匹配。
+
+name=falling sand
+enabled=true
+source=BOTH
+subtitle_preparation=true
+main_color=#FFAA00
+start_sound=block.fire.extinguish
+end_sound=block.fire.extinguish
+pattern=falling sand|sand
+match_mode=CONTAINS
+case_sensitive=false
+events=
+  stop falling|10|#FF5500|entity.blaze.shoot
+  sands gone|5.0|
+
