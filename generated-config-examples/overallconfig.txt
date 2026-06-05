@@ -1,17 +1,14 @@
-# HITWtimer Overall Config (overallconfig.txt)
-# This is the TOP-LEVEL / MOD-LEVEL configuration.
-# It controls the entire mod behavior, HUD defaults, detection, and initial lists.
-# 
-# Trap list specific defaults (traplistconfig) go at the top of each traplist*.txt
-# Individual trap settings (trapconfig) go under name= sections in traplist*.txt
-# You can control lists at runtime with: /hitwtimer enable <name> / disable <name> / reload
+# HITWtimer Overall Config (overallconfig.txt) - Mod level settings
+# This is the top-level config for the entire mod.
+# List-specific defaults go in the header of each traplist*.txt
+# Per-trap settings go under each name= in traplist*.txt
+# Runtime list control via /hitwtimer enable/disable <list>
 
 # --- Master ---
 enabled=true
 
-# --- Lists (which traplist*.txt to load) ---
-enabled_lists=traplist1
-# Example for multiple: enabled_lists=traplist1,pvp,custom
+# --- Lists ---
+enabled_lists=traplist1,testtraplist
 
 # --- Detection ---
 detect_subtitle=true
@@ -20,14 +17,15 @@ detect_chat=true
 # --- Preparation defaults (fallbacks) ---
 subtitle_preparation=true
 preparation_time=3.0
-preparation_color=#55FF55
-main_color=#FFFFFF
+preparation_color=#FF55FF55
+main_color=#FFFFFFFF
 
-# --- HUD appearance and position (editable in-game with edit mode) ---
-hud_x=10
-hud_y=10
-hud_scale=1.0
+# --- HUD ---
+hud_x=0
+hud_y=0
+hud_scale=1
 render_background=true
+hud_background_color=#25000000
 hud_horizontal_padding=8
 hud_vertical_padding=6
 
@@ -35,9 +33,7 @@ hud_vertical_padding=6
 auto_reload_keywords=hitw,hole in the wall,游戏开始
 
 # --- Misc ---
-debug=false
-#   When true:
-#   - Prints detailed match info to console for every subtitle/chat detection.
-#   - Shows extra "trap started" message in chat (with prep time and list name).
-#   - Helps debug why traps trigger or don't.
-#   Keep false for normal play to avoid spam.
+debug=true
+
+# --- Dedup ---
+dedup_ms=3100
