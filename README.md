@@ -1,6 +1,6 @@
 # HITWtimer
 
-**纯客户端 Fabric Kotlin 模组**（适用于 Minecraft 1.21.4 / 官方映射 26.1.2），用于 HITW（Hole in the Wall）等小游戏的陷阱（trap）检测与多阶段计时。
+**纯客户端 Fabric Kotlin 模组**（适用于 Minecraft 26.1.2），用于 HITW（Hole in the Wall）等小游戏的陷阱（trap）检测与多阶段计时。
 
 主要特性：字幕/聊天双源检测、严格可控的准备阶段（Preparation）、多阶段事件计时器 + 声音/颜色、**自适应深色 HUD**（支持拖拽 + 滚轮缩放实时编辑并自动保存）、热重载、运行时多列表启停、**3 级配置系统**、可自定义检测 pattern + 匹配模式（支持正则）、双语支持。
 
