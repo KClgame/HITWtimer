@@ -2,6 +2,7 @@ package com.kcl.hitwtimer.client.gui
 
 import com.kcl.hitwtimer.client.HITWtimerClient
 import com.kcl.hitwtimer.client.config.HitwConfig
+import com.kcl.hitwtimer.client.config.HudPresence
 import com.kcl.hitwtimer.client.hud.HudRenderer
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -13,14 +14,13 @@ import org.lwjgl.glfw.GLFW
 /**
  * Overlay screen for HUD edit mode.
  *
- * Why a screen is required:
- * - In-game the mouse is grabbed; free-cursor drag cannot work without a Screen open.
- * - Mouse events arrive in GUI-scaled coordinates (matches HUD draw space).
- *
  * Controls:
  * - Left-drag: move HUD
- * - Scroll wheel: scale HUD
- * - Esc / K (edit keybind): save & exit
+ * - Scroll: scale
+ * - Shift+Scroll: background opacity (0–100%)
+ * - M: cycle HUD mode ALWAYS / ON_TRAP / DISABLED
+ * - B: toggle background on/off
+ * - Esc / K: save & exit
  */
 class HudEditScreen : Screen(Component.literal("HITWtimer HUD Edit")) {
 
@@ -30,11 +30,9 @@ class HudEditScreen : Screen(Component.literal("HITWtimer HUD Edit")) {
 
     override fun isPauseScreen(): Boolean = false
 
-    /** Use in-game UI style (no dirt menu background). */
     override fun isInGameUi(): Boolean = true
 
     override fun extractBackground(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
-        // Very light dim so the world stays visible while editing
         graphics.fillGradient(0, 0, width, height, 0x33000000, 0x33000000)
         minecraft?.gui?.extractDeferredSubtitles()
     }
@@ -43,10 +41,15 @@ class HudEditScreen : Screen(Component.literal("HITWtimer HUD Edit")) {
         super.extractRenderState(graphics, mouseX, mouseY, a)
 
         val font = minecraft!!.font
+        val mode = HitwConfig.getHudPresence()
+        val opacityPct = (HitwConfig.getHudBgOpacity() * 100f)
         val lines = listOf(
             "§e§l[HITW HUD EDIT]",
-            "§fLeft-drag §7to move   §fScroll §7to scale   §fEsc/K §7to save & exit",
-            "§7Pos: (${HitwConfig.getHudX()}, ${HitwConfig.getHudY()})  Scale: ${"%.2f".format(HitwConfig.getHudScale())}x"
+            "§fLeft-drag §7move  §fScroll §7scale  §fShift+Scroll §7opacity",
+            "§fM §7cycle mode  §fB §7toggle background  §fEsc/K §7save & exit",
+            "§7Pos: (${HitwConfig.getHudX()}, ${HitwConfig.getHudY()})  Scale: ${"%.2f".format(HitwConfig.getHudScale())}x",
+            "§7Opacity: ${"%.0f".format(opacityPct)}%  BG: ${if (HitwConfig.getRenderBackground()) "on" else "off"}",
+            "§7Mode: §f${mode.displayName()} §8— ${modeHint(mode)}"
         )
         var y = 8
         for (line in lines) {
@@ -55,10 +58,15 @@ class HudEditScreen : Screen(Component.literal("HITWtimer HUD Edit")) {
         }
     }
 
+    private fun modeHint(mode: HudPresence): String = when (mode) {
+        HudPresence.ALWAYS -> "HUD always shown"
+        HudPresence.ON_TRAP -> "HUD only when trap active"
+        HudPresence.DISABLED -> "no HUD / no detect / no sound"
+    }
+
     override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
         if (event.button() == 0) {
             dragging = true
-            // Offset from HUD top-left (GUI-scaled coords, same as draw space)
             dragOffsetX = event.x() - HitwConfig.getHudX()
             dragOffsetY = event.y() - HitwConfig.getHudY()
             return true
@@ -87,22 +95,35 @@ class HudEditScreen : Screen(Component.literal("HITWtimer HUD Edit")) {
     }
 
     override fun mouseScrolled(x: Double, y: Double, scrollX: Double, scrollY: Double): Boolean {
-        if (scrollY != 0.0) {
+        if (scrollY == 0.0) return super.mouseScrolled(x, y, scrollX, scrollY)
+
+        val shift = hasShiftDown()
+        if (shift) {
+            HudRenderer.adjustOpacity(scrollY)
+        } else {
             HudRenderer.adjustScale(scrollY)
-            return true
         }
-        return super.mouseScrolled(x, y, scrollX, scrollY)
+        return true
     }
 
     override fun keyPressed(event: KeyEvent): Boolean {
-        // Esc handled by Screen; also exit on the edit keybind (default K)
         if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
             closeEdit()
             return true
         }
-        // Match current edit key binding
         if (HITWtimerClient.keyEditHud.matches(event)) {
             closeEdit()
+            return true
+        }
+        // M: cycle presence mode
+        if (event.key() == GLFW.GLFW_KEY_M) {
+            val next = HitwConfig.cycleHudPresence()
+            // Stay in edit even if DISABLED so user can switch back
+            return true
+        }
+        // B: toggle background
+        if (event.key() == GLFW.GLFW_KEY_B) {
+            HitwConfig.setRenderBackground(!HitwConfig.getRenderBackground())
             return true
         }
         return super.keyPressed(event)
@@ -115,9 +136,17 @@ class HudEditScreen : Screen(Component.literal("HITWtimer HUD Edit")) {
     private fun closeEdit() {
         dragging = false
         HudRenderer.exitEdit(save = true)
-        // Avoid re-entrant setScreen(null) loops
         if (minecraft?.screen === this) {
             minecraft?.setScreen(null)
+        }
+    }
+
+    companion object {
+        private fun hasShiftDown(): Boolean {
+            val mc = net.minecraft.client.Minecraft.getInstance()
+            val win = mc.window.handle()
+            return org.lwjgl.glfw.GLFW.glfwGetKey(win, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
+                org.lwjgl.glfw.GLFW.glfwGetKey(win, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS
         }
     }
 }

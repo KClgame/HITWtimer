@@ -82,25 +82,31 @@ object HITWtimerClient : ClientModInitializer {
                 client.player?.sendSystemMessage(Component.literal("§a[HITW] Reloaded configs + trap lists"))
             }
             while (keyEditHud.consumeClick()) {
-                // Toggle via screen: free mouse cursor is required for drag/scale
+                // Toggle via screen: free mouse cursor is required for drag/scale/opacity
                 if (client.screen is HudEditScreen) {
                     client.screen?.onClose()
                 } else if (client.screen == null) {
                     HudRenderer.enterEdit()
                     client.setScreen(HudEditScreen())
                     client.player?.sendSystemMessage(
-                        Component.literal("§e[HITW] HUD edit: drag to move, scroll to scale, Esc/K to save")
+                        Component.literal(
+                            "§e[HITW] HUD edit: drag=move, scroll=scale, Shift+scroll=opacity, M=mode, Esc/K=save"
+                        )
                     )
                 }
             }
             while (keyToggleHud.consumeClick()) {
-                val visible = !HitwConfig.isHudVisible()
-                HitwConfig.setHudVisible(visible)
-                if (visible) {
-                    client.player?.sendSystemMessage(Component.literal("§a[HITW] HUD shown"))
-                } else {
-                    client.player?.sendSystemMessage(Component.literal("§7[HITW] HUD hidden"))
+                // Cycle: ALWAYS → ON_TRAP → DISABLED → ALWAYS (persisted on save via edit, or save now)
+                val mode = HitwConfig.cycleHudPresence()
+                HitwConfig.save()
+                val color = when (mode) {
+                    com.kcl.hitwtimer.client.config.HudPresence.ALWAYS -> "§a"
+                    com.kcl.hitwtimer.client.config.HudPresence.ON_TRAP -> "§e"
+                    com.kcl.hitwtimer.client.config.HudPresence.DISABLED -> "§c"
                 }
+                client.player?.sendSystemMessage(
+                    Component.literal("$color[HITW] Mode: ${mode.chatLabel()}")
+                )
             }
         }
 

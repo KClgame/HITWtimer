@@ -16,9 +16,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Renders the HITWtimer HUD on top of the vanilla GUI.
  *
- * Position (x, y) is the top-left corner in GUI-scaled coordinates.
- * Scale is applied via pose stack so text/background grow from that corner
- * without shifting the stored position (old code wrongly did x = baseX * scale).
+ * Position (x, y) is GUI-scaled top-left. Scale via pose stack.
+ * Background ARGB alpha comes from hud_bg_opacity (default 0.5 = 50%).
  */
 @Mixin(Gui.class)
 public class GuiHudRenderMixin {
@@ -26,8 +25,8 @@ public class GuiHudRenderMixin {
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void hitwtimer$renderHud(GuiGraphicsExtractor extractor, DeltaTracker deltaTracker, CallbackInfo ci) {
         HudRenderer.HudSnapshot snapshot = HudRenderer.INSTANCE.getSnapshot();
+        if (!snapshot.getVisible()) return;
 
-        if (!com.kcl.hitwtimer.client.config.HitwConfig.INSTANCE.isHudVisible()) return;
         boolean hasContent = !snapshot.getLines().isEmpty();
         if (!hasContent && !snapshot.getEditing()) return;
 
@@ -43,31 +42,30 @@ public class GuiHudRenderMixin {
 
         Matrix3x2fStack pose = extractor.pose();
         pose.pushMatrix();
-        // Translate to stored HUD origin, then scale content around that origin
         pose.translate(baseX, baseY);
         pose.scale(scale, scale);
 
-        // Local coordinates after transform start at (0, 0)
         int localX = 0;
         int localY = 0;
 
         if (hasContent) {
-            int bgColor = snapshot.getBgColor();
-            if ((bgColor & 0xFF000000) != 0) {
-                int maxW = 0;
-                for (Object raw : snapshot.getLines()) {
-                    @SuppressWarnings("unchecked")
-                    Pair<String, Integer> pair = (Pair<String, Integer>) raw;
-                    int w = font.width(pair.getFirst());
-                    if (w > maxW) maxW = w;
-                }
-                int totalH = snapshot.getLines().size() * lineH + vPad * 2;
-                extractor.fill(localX - hPad, localY - vPad, localX + maxW + hPad, localY + totalH, bgColor);
+            int maxW = 0;
+            for (Object raw : snapshot.getLines()) {
+                @SuppressWarnings("unchecked")
+                Pair<String, Integer> pair = (Pair<String, Integer>) raw;
+                int w = font.width(pair.getFirst());
+                if (w > maxW) maxW = w;
+            }
+            int totalH = snapshot.getLines().size() * lineH + vPad * 2;
 
-                // Edit-mode border so the panel is easy to grab
-                if (snapshot.getEditing()) {
-                    extractor.outline(localX - hPad - 1, localY - vPad - 1, maxW + hPad * 2 + 2, totalH + 2, 0xFFFFFF55);
-                }
+            int bgColor = snapshot.getBgColor();
+            // Use full ARGB as stored (alpha = opacity); skip if fully transparent
+            if ((bgColor >>> 24) != 0) {
+                extractor.fill(localX - hPad, localY - vPad, localX + maxW + hPad, localY + totalH, bgColor);
+            }
+
+            if (snapshot.getEditing()) {
+                extractor.outline(localX - hPad - 1, localY - vPad - 1, maxW + hPad * 2 + 2, totalH + 2, 0xFFFFFF55);
             }
         }
 

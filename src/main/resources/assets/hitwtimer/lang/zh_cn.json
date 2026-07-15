@@ -1,8 +1,8 @@
 {
   "key.category.hitwtimer.main": "HITW 计时器",
   "key.categories.hitwtimer": "HITW 计时器",
-  "key.hitwtimer.toggle": "切换 HUD 显示",
-  "key.hitwtimer.edit": "HUD 编辑模式 (拖拽+滚轮)",
+  "key.hitwtimer.toggle": "循环 HUD 模式 (常驻/仅陷阱/关闭)",
+  "key.hitwtimer.edit": "HUD 编辑模式 (拖拽/缩放/透明度)",
   "key.hitwtimer.reload": "重新加载配置和列表",
 
   "commands.hitwtimer.reload": "HITWtimer 配置已重新加载",

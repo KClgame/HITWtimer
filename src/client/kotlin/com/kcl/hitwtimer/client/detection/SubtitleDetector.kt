@@ -15,6 +15,8 @@ object SubtitleDetector {
     fun handleSubtitle(component: Component) {
         val text = component.string
         if (text.isBlank()) return
+        // Full off: no detection when DISABLED / enabled=false
+        if (!HitwConfig.isModActive()) return
 
         val now = System.currentTimeMillis()
         // dedup
@@ -49,6 +51,9 @@ object SubtitleDetector {
     fun handleChat(component: Component) {
         val text = component.string
         if (text.isBlank()) return
+        if (!HitwConfig.isModActive()) return
+        if (!HitwConfig.shouldDetectChat()) return
+
         val now = System.currentTimeMillis()
         val prev = recent[text] ?: 0
         if (now - prev < DEDUP_MS) return

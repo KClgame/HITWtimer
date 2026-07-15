@@ -71,7 +71,8 @@ class SettingsScreen(
     private fun renderOverallTab() {
         val cfg = HitwConfig.getCurrentGlobalConfig()
         val lines = listOf(
-            "HUD: (${cfg.hudX}, ${cfg.hudY})  Scale: ${cfg.hudScale}x",
+            "HUD: (${cfg.hudX}, ${cfg.hudY})  Scale: ${cfg.hudScale}x  Mode: ${cfg.hudPresence.name}",
+            "BG opacity: ${"%.0f".format(cfg.hudBgOpacity * 100)}%  render_bg: ${cfg.renderBackground}",
             "Subtitle: ${cfg.detectSubtitle}  Chat: ${cfg.detectChat}  Debug: ${cfg.debug}",
             "Prep: ${cfg.preparationTime}s  PrepColor: #${String.format("%06X", cfg.preparationColor and 0xFFFFFF)}",
             "MainColor: #${String.format("%06X", cfg.mainColor and 0xFFFFFF)}",

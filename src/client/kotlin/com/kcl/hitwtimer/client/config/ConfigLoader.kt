@@ -73,7 +73,11 @@ object ConfigLoader {
         sb.appendLine("hud_x=10")
         sb.appendLine("hud_y=10")
         sb.appendLine("hud_scale=1.0")
+        sb.appendLine("# ALWAYS | ON_TRAP | DISABLED  (DISABLED = no HUD, no detection, no sound)")
+        sb.appendLine("hud_mode=ON_TRAP")
         sb.appendLine("render_background=true")
+        sb.appendLine("# Background opacity 0.0..1.0  (default 0.5 = 50%)")
+        sb.appendLine("hud_bg_opacity=0.5")
         sb.appendLine("hud_horizontal_padding=8")
         sb.appendLine("hud_vertical_padding=6")
         sb.appendLine()
@@ -244,7 +248,9 @@ object ConfigLoader {
         var hx = 10
         var hy = 10
         var hs = 1.0f
+        var hudPresence = HudPresence.ON_TRAP
         var renderBg = true
+        var bgOpacity = GlobalConfig.DEFAULT_HUD_BG_OPACITY
         var hPad = 8
         var vPad = 6
         var autoKeywords = listOf("hitw", "hole in the wall", "游戏开始")
@@ -283,8 +289,14 @@ object ConfigLoader {
                 "hud_x" -> hx = value.toIntOrNull() ?: 10
                 "hud_y" -> hy = value.toIntOrNull() ?: 10
                 "hud_scale" -> hs = value.toFloatOrNull() ?: 1.0f
+                "hud_mode", "hudmode", "hud_presence", "hudpresence", "presence" -> {
+                    hudPresence = HudPresence.parse(value)
+                }
                 "render_background", "renderbackground" -> {
                     renderBg = value.equals("true", true)
+                }
+                "hud_bg_opacity", "hudbgopacity", "bg_opacity", "background_opacity", "hud_opacity" -> {
+                    bgOpacity = parseOpacity(value)
                 }
                 "hud_horizontal_padding", "hudhorizontalpadding" -> hPad = value.toIntOrNull() ?: 8
                 "hud_vertical_padding", "hudverticalpadding" -> vPad = value.toIntOrNull() ?: 6
@@ -306,12 +318,24 @@ object ConfigLoader {
             hudX = hx,
             hudY = hy,
             hudScale = hs,
+            hudPresence = hudPresence,
             renderBackground = renderBg,
+            hudBgOpacity = bgOpacity,
             hudHorizontalPadding = hPad,
             hudVerticalPadding = vPad,
             autoReloadKeywords = autoKeywords,
             debug = debug
         )
+    }
+
+    /** Accept 0.0–1.0, or 0–100 as percent, or 0–255 as alpha byte. */
+    private fun parseOpacity(value: String): Float {
+        val v = value.trim().removeSuffix("%").toFloatOrNull() ?: return GlobalConfig.DEFAULT_HUD_BG_OPACITY
+        return when {
+            v <= 1.0f -> v.coerceIn(0f, 1f)
+            v <= 100f -> (v / 100f).coerceIn(0f, 1f)
+            else -> (v / 255f).coerceIn(0f, 1f)
+        }
     }
 
     /**

@@ -25,6 +25,9 @@ object TimerManager {
      * Preparation is NOT a user event in trap.events; it's auto-handled in ActiveTimer (label, timing, sound delay).
      */
     fun addTrap(trap: TrapDefinition, nowMillis: Long, preparationSeconds: Double, listName: String? = null) {
+        // DISABLED presence / master off: no timers, no sounds
+        if (!HitwConfig.isModActive()) return
+
         val dedupWindow = 1500L // ms
         val last = lastTrigger[trap.name] ?: 0
         if (nowMillis - last < dedupWindow) {

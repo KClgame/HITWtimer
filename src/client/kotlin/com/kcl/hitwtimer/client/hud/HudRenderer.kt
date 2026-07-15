@@ -1,19 +1,14 @@
 package com.kcl.hitwtimer.client.hud
 
 import com.kcl.hitwtimer.client.config.HitwConfig
+import com.kcl.hitwtimer.client.config.HudPresence
 import com.kcl.hitwtimer.client.timer.TimerManager
 
 /**
  * Pure state + logic for HUD. Actual drawing is done from GuiHudRenderMixin.java.
  *
- * Coordinates are **GUI-scaled** (same space as Screen mouse events and GuiGraphicsExtractor).
- * [hudScale] only affects visual size of the panel, NOT the stored top-left position.
- *
- * Display format for each active trap:
- *   trapname  0.0s
- *     Preparation  0.0s
- *     event1  0.0s
- *     event2
+ * Coordinates are **GUI-scaled**. [hudScale] scales content from the stored top-left.
+ * Background opacity defaults to 50% (see [HitwConfig.getHudBgOpacity]).
  */
 object HudRenderer {
     @Volatile
@@ -41,9 +36,7 @@ object HudRenderer {
 
     fun isEditing(): Boolean = editing
 
-    /**
-     * Adjust HUD scale from scroll wheel. [delta] is typically ±1 (or fractional with smooth scroll).
-     */
+    /** Scroll wheel without modifier: scale. */
     fun adjustScale(delta: Double) {
         if (!editing) return
         val cur = HitwConfig.getHudScale()
@@ -51,13 +44,23 @@ object HudRenderer {
         HitwConfig.updateHud(HitwConfig.getHudX(), HitwConfig.getHudY(), neu)
     }
 
-    // Data snapshot for the java renderer
+    /** Shift+scroll in edit mode: background opacity 0..1. */
+    fun adjustOpacity(delta: Double) {
+        if (!editing) return
+        // ~4% per notch
+        HitwConfig.adjustHudBgOpacity((delta * 0.04).toFloat())
+        if (!HitwConfig.getRenderBackground() && HitwConfig.getHudBgOpacity() > 0f) {
+            HitwConfig.setRenderBackground(true)
+        }
+    }
+
     data class HudSnapshot(
         val x: Int,
         val y: Int,
         val scale: Float,
         val editing: Boolean,
-        val lines: List<Pair<String, Int>>, // text + color
+        val visible: Boolean,
+        val lines: List<Pair<String, Int>>,
         val bgColor: Int,
         val hPadding: Int = HitwConfig.getHudHorizontalPadding(),
         val vPadding: Int = HitwConfig.getHudVerticalPadding()
@@ -65,23 +68,31 @@ object HudRenderer {
 
     fun getSnapshot(): HudSnapshot {
         val timers = TimerManager.getActiveTimers()
+        val hasTrap = timers.isNotEmpty()
         val x = HitwConfig.getHudX()
         val y = HitwConfig.getHudY()
         val sc = HitwConfig.getHudScale()
-        val bg = if (HitwConfig.getRenderBackground()) 0xCC000000.toInt() else 0x00000000
+        val bg = HitwConfig.getHudBackgroundArgb()
 
-        // Always show placeholder while editing so the panel can be dragged/scaled
-        if (timers.isEmpty()) {
+        val visible = HitwConfig.shouldDrawHud(hasTrap, editing)
+        if (!visible) {
+            return HudSnapshot(x, y, sc, editing, false, emptyList(), 0)
+        }
+
+        if (!hasTrap) {
+            val mode = HitwConfig.getHudPresence()
             val placeholder = if (editing) {
                 listOf(
                     "HITWtimer HUD" to 0xFFFFFF55.toInt(),
+                    "  mode: ${mode.displayName()}" to 0xFFAAAAAA.toInt(),
+                    "  opacity: ${"%.0f".format(HitwConfig.getHudBgOpacity() * 100)}%" to 0xFF888888.toInt(),
                     "  (no active trap)" to 0xFF888888.toInt()
                 )
             } else {
                 listOf("No current trap" to 0xFF888888.toInt())
             }
             return HudSnapshot(
-                x, y, sc, editing, placeholder, bg,
+                x, y, sc, editing, true, placeholder, bg,
                 HitwConfig.getHudHorizontalPadding(), HitwConfig.getHudVerticalPadding()
             )
         }
@@ -122,7 +133,7 @@ object HudRenderer {
         }
 
         return HudSnapshot(
-            x, y, sc, editing, lines, bg,
+            x, y, sc, editing, true, lines, bg,
             HitwConfig.getHudHorizontalPadding(), HitwConfig.getHudVerticalPadding()
         )
     }

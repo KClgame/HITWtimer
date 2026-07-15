@@ -1,8 +1,8 @@
 {
   "key.category.hitwtimer.main": "HITWtimer",
   "key.categories.hitwtimer": "HITWtimer",
-  "key.hitwtimer.toggle": "Toggle HUD Visibility",
-  "key.hitwtimer.edit": "HUD Edit Mode (drag+scroll)",
+  "key.hitwtimer.toggle": "Cycle HUD Mode (Always / On Trap / Disabled)",
+  "key.hitwtimer.edit": "HUD Edit Mode (drag/scroll/opacity)",
   "key.hitwtimer.reload": "Reload Configs + Lists",
 
   "commands.hitwtimer.reload": "HITWtimer configs reloaded",
