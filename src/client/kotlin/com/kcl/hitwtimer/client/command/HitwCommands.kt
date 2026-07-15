@@ -90,9 +90,18 @@ object HitwCommands {
                             }
                         )
                 )
+                .then(
+                    LiteralArgumentBuilder.literal<FabricClientCommandSource>("settings")
+                        .executes { context ->
+                            context.source.client.setScreen(
+                                com.kcl.hitwtimer.client.gui.SettingsScreen()
+                            )
+                            1
+                        }
+                )
                 .executes { context ->
                     context.source.sendFeedback(
-                        Component.literal("§e[HitwTimer] 可用子命令: list | reload | enable <name> | disable <name>")
+                        Component.literal("§e[HitwTimer] 可用子命令: list | reload | enable <name> | disable <name> | settings")
                     )
                     1
                 }

@@ -1,6 +1,7 @@
 {
+  "key.category.hitwtimer.main": "HITWtimer",
   "key.categories.hitwtimer": "HITWtimer",
-  "key.hitwtimer.toggle": "Toggle/Clear Timers",
+  "key.hitwtimer.toggle": "Toggle HUD Visibility",
   "key.hitwtimer.edit": "HUD Edit Mode (drag+scroll)",
   "key.hitwtimer.reload": "Reload Configs + Lists",
 

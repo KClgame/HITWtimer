@@ -68,7 +68,7 @@ object ConfigLoader {
         sb.appendLine("main_color=#FFFFFF")
         sb.appendLine()
         sb.appendLine("# Note: Preparation phase is auto-inserted (in timing + display) ONLY for subtitle detections.")
-        sb.appendLine("# Chat detections never have preparation. Do not configure '准备' as an event in traps.")
+        sb.appendLine("# Chat detections never have preparation. Do not configure 'Preparation' as an event in traps.")
         sb.appendLine("# --- HUD appearance and position (editable in-game with edit mode) ---")
         sb.appendLine("hud_x=10")
         sb.appendLine("hud_y=10")
@@ -144,7 +144,7 @@ object ConfigLoader {
         sb.appendLine("# Preparation（准备阶段） **不需要** 在 trap 的 events 中配置！")
         sb.appendLine("# 它完全由检测来源自动决定：")
         sb.appendLine("# - 来源是 subtitle 且检测到该 trap，并且 subtitle_preparation 允许（trap/list/global 三级，trap 的 false 严格优先）")
-        sb.appendLine("#   → 自动插入准备阶段（显示“准备”、使用 preparation_time、延迟 start_sound）")
+        sb.appendLine("#   → 自动作为 trap 阶段列表第一行插入（显示英文 Preparation、使用 preparation_time、延迟 start_sound）")
         sb.appendLine("# - 来源是 chat（非 subtitle）→ 永不插入准备阶段（preparationSeconds=0）")
         sb.appendLine("# trap 的 events 只列出检测到后实际执行的阶段。")
         sb.appendLine("#")
@@ -154,8 +154,8 @@ object ConfigLoader {
         sb.appendLine("# Event: name|duration|color(optional)|sound(optional)")
         sb.appendLine("#   color falls back to this trap's main_color")
         sb.appendLine("# IMPORTANT: Do NOT put a 'Preparation' stage in your trap's events list.")
-        sb.appendLine("# Preparation is automatically handled ONLY for subtitle detections (based on subtitle_preparation setting).")
-        sb.appendLine("# Chat detections never have preparation phase.")
+        sb.appendLine("# Preparation is auto-inserted as the FIRST stage row in the HUD (label: Preparation).")
+        sb.appendLine("# Only for subtitle detections (based on subtitle_preparation). Chat never has prep.")
         sb.appendLine()
         sb.appendLine("# --- traplistconfig: 本列表的状态和默认配置 (在第一个 name= 之前) ---")
         sb.appendLine("# list status")
@@ -428,7 +428,13 @@ object ConfigLoader {
             val line = raw.trim()
             if (line.isEmpty() || line.startsWith("#")) continue
             val eqIdx = line.indexOf('=')
-            if (eqIdx < 0) continue
+            // Lines without '=' are trap event continuations (e.g. "  stop falling|10|#FF5500|")
+            if (eqIdx < 0) {
+                if (currentName != null && (line.contains('|') || line.isNotBlank())) {
+                    parseEventsValue(line)?.let { currentEvents.add(it) }
+                }
+                continue
+            }
             val key = line.substring(0, eqIdx).trim().lowercase()
             val value = line.substring(eqIdx + 1).trim()
 
@@ -523,10 +529,10 @@ object ConfigLoader {
         var t = s.trim().removePrefix("#").removePrefix("0x").removePrefix("0X")
         if (t.length == 3) t = t.map { "$it$it" }.joinToString("")
         return try {
-            t.toInt(16) or 0xFF000000.toInt() // keep alpha? but we use RGB usually
+            t.toInt(16) or 0xFF000000.toInt()
         } catch (_: Exception) {
-            0xFFFFFF
-        } and 0xFFFFFF
+            0xFFFFFFFF.toInt()
+        }
     }
 
     /**
@@ -544,14 +550,56 @@ object ConfigLoader {
     /**
      * Save a specific trap list (future use for in-game trap editing).
      */
-    fun saveTrapList(listName: String, traps: List<TrapDefinition>) {
+    fun saveTrapList(listName: String, traps: List<TrapDefinition>, listConfig: TrapListConfig? = null) {
         val p = getTrapListPath(listName)
         if (!p.parent.exists()) p.parent.createDirectories()
-        // For now just a stub that writes header + minimal; full roundtrip left as exercise
+
         val sb = StringBuilder()
-        sb.appendLine("# Saved trap list $listName - edit manually for full control")
-        sb.append(buildTrapListTemplate(listName))
-        // In real would serialize the traps back
+        sb.appendLine("# HITWtimer 陷阱列表: $listName")
+        sb.appendLine("# 由可视化配置界面保存 - 手动编辑请保持格式一致")
+        sb.appendLine()
+
+        // Serialize traplistconfig header
+        val cfg = listConfig ?: loadListConfig(listName) ?: TrapListConfig(listName)
+        sb.appendLine("# --- traplistconfig: 列表状态和陷阱默认值 ---")
+        sb.appendLine("enabled=${cfg.enabled}")
+        if (cfg.description.isNotBlank()) {
+            sb.appendLine("description=${cfg.description}")
+        }
+        sb.appendLine("source=${cfg.defaultSource.name}")
+        sb.appendLine("match_mode=${cfg.defaultMatchMode.name}")
+        sb.appendLine("case_sensitive=${cfg.defaultCaseSensitive}")
+        cfg.defaultPattern?.let { sb.appendLine("pattern=$it") }
+        cfg.defaultSubtitlePreparation?.let { sb.appendLine("subtitle_preparation=$it") }
+        cfg.defaultPreparationTime?.let { sb.appendLine("preparation_time=$it") }
+        cfg.defaultPreparationColor?.let { sb.appendLine("preparation_color=#${colorToHex(it)}") }
+        cfg.defaultMainColor?.let { sb.appendLine("main_color=#${colorToHex(it)}") }
+        cfg.defaultStartSound?.let { sb.appendLine("start_sound=$it") }
+        cfg.defaultEndSound?.let { sb.appendLine("end_sound=$it") }
+        sb.appendLine()
+
+        for ((i, trap) in traps.withIndex()) {
+            if (i > 0) sb.appendLine()
+            sb.appendLine("name=${trap.name}")
+            sb.appendLine("enabled=${trap.enabled}")
+            sb.appendLine("source=${trap.source.name}")
+            sb.appendLine("pattern=${trap.pattern}")
+            sb.appendLine("match_mode=${trap.matchMode.name}")
+            sb.appendLine("case_sensitive=${trap.caseSensitive}")
+            trap.subtitlePreparation?.let { sb.appendLine("subtitle_preparation=$it") }
+            trap.startSound?.let { sb.appendLine("start_sound=$it") }
+            trap.endSound?.let { sb.appendLine("end_sound=$it") }
+            trap.mainColor?.let { sb.appendLine("main_color=#${colorToHex(it)}") }
+            trap.preparationTime?.let { sb.appendLine("preparation_time=$it") }
+            trap.preparationColor?.let { sb.appendLine("preparation_color=#${colorToHex(it)}") }
+            sb.appendLine("events=")
+            for (event in trap.events) {
+                val c = event.color?.let { "#${colorToHex(it)}" } ?: ""
+                val s = event.sound ?: ""
+                sb.appendLine("  ${event.label}|${formatTime(event.offsetSeconds)}|$c|$s")
+            }
+        }
+        sb.appendLine()
         p.writeText(sb.toString(), Charsets.UTF_8)
     }
 
@@ -563,5 +611,57 @@ object ConfigLoader {
         if (!listPath.exists()) return null
         val (cfg, _) = parseTrapList(listPath, listName)
         return cfg
+    }
+
+    /**
+     * Scan config/hitwtimer/ for all *.txt files excluding overallconfig.txt.
+     */
+    fun loadAllListNames(): List<String> {
+        if (!configDir.exists()) return emptyList()
+        return configDir.listDirectoryEntries("*.txt")
+            .map { it.nameWithoutExtension }
+            .filter { it != "overallconfig" }
+            .sorted()
+    }
+
+    /**
+     * Create a new traplist file with the given name, writing a template.
+     */
+    fun createNewList(name: String): Path {
+        val p = getTrapListPath(name)
+        if (!p.parent.exists()) p.parent.createDirectories()
+        p.writeText(buildTrapListTemplate(name), Charsets.UTF_8)
+        return p
+    }
+
+    /**
+     * Delete a traplist file.
+     */
+    fun deleteList(listName: String): Boolean {
+        val p = getTrapListPath(listName)
+        return if (p.exists()) {
+            p.deleteExisting()
+            true
+        } else false
+    }
+
+    /**
+     * Load only the trap definitions from a specific list.
+     */
+    fun loadTrapsForList(listName: String): List<TrapDefinition> {
+        val listPath = getTrapListPath(listName)
+        if (!listPath.exists()) return emptyList()
+        val (_, traps) = parseTrapList(listPath, listName)
+        return traps
+    }
+
+    private fun colorToHex(color: Int): String {
+        return String.format("%06X", color and 0xFFFFFF)
+    }
+
+    private fun formatTime(seconds: Double): String {
+        return if (seconds == seconds.toLong().toDouble()) {
+            String.format("%.1f", seconds)
+        } else seconds.toString()
     }
 }

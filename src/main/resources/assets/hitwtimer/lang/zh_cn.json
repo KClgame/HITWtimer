@@ -1,6 +1,7 @@
 {
+  "key.category.hitwtimer.main": "HITW 计时器",
   "key.categories.hitwtimer": "HITW 计时器",
-  "key.hitwtimer.toggle": "切换/清除计时器",
+  "key.hitwtimer.toggle": "切换 HUD 显示",
   "key.hitwtimer.edit": "HUD 编辑模式 (拖拽+滚轮)",
   "key.hitwtimer.reload": "重新加载配置和列表",
 

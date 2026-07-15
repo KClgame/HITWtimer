@@ -54,14 +54,9 @@ object TimerManager {
      * Tick all active, remove finished ones. Play sounds via the ActiveTimer.
      */
     fun tick(nowMillis: Long) {
-        val it = active.iterator()
-        while (it.hasNext()) {
-            val t = it.next()
-            t.tick(nowMillis)
-            if (t.isFinished()) {
-                it.remove()
-            }
-        }
+        // For CopyOnWriteArrayList, use removeAll to avoid COWIterator.remove() UnsupportedOperationException
+        active.forEach { it.tick(nowMillis) }
+        active.removeAll { it.isFinished() }
         // cleanup old dedup entries
         val cutoff = nowMillis - 10000
         lastTrigger.entries.removeIf { it.value < cutoff }

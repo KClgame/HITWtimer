@@ -1,16 +1,16 @@
 {
-	"required": true,
-	"package": "com.kcl.hitwtimer.client.mixin",
-	"compatibilityLevel": "JAVA_25",
-	"client": [
-		"OptionsMixin",
-		"MouseHandlerMixin",
-		"GuiTitleMixin"
-	],
-	"injectors": {
-		"defaultRequire": 1
-	},
-	"overwrites": {
-		"requireAnnotations": true
-	}
+  "required": true,
+  "package": "com.kcl.hitwtimer.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "OptionsMixin",
+    "GuiTitleMixin",
+    "GuiHudRenderMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
 }

@@ -43,3 +43,7 @@ replay_*.log
 build*.log
 build_*.log
 *build.log
+
+# local decompile/extract scratch
+_tmp_src/
+

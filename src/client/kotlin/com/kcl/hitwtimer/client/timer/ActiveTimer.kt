@@ -3,6 +3,10 @@ package com.kcl.hitwtimer.client.timer
 import com.kcl.hitwtimer.client.trap.TrapDefinition
 import com.kcl.hitwtimer.client.trap.TrapEvent
 import net.minecraft.client.Minecraft
+import net.minecraft.client.resources.sounds.SimpleSoundInstance
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.resources.Identifier
+import net.minecraft.sounds.SoundEvent
 import kotlin.math.max
 
 /**
@@ -28,7 +32,7 @@ class ActiveTimer(
 
     fun getDisplayLabel(): String {
         if (!preparationDone && preparationSeconds > 0) {
-            return "准备: ${trap.name}"
+            return "Preparation"
         }
         val ev = if (currentEventIndex < events.size) events[currentEventIndex] else events.lastOrNull()
         return ev?.label ?: trap.name
@@ -36,12 +40,12 @@ class ActiveTimer(
 
     fun getColor(): Int {
         if (!preparationDone && preparationSeconds > 0) {
-            return trap.preparationColor ?: 0x55FF55 // use trap prep color or default green
+            return trap.preparationColor ?: 0xFF55FF55.toInt() // use trap prep color or default green
         }
         val ev = if (currentEventIndex < events.size) events[currentEventIndex] else null
         return ev?.color
             ?: trap.mainColor
-            ?: 0xFFFFFF
+            ?: 0xFFFFFFFF.toInt()
     }
 
     fun getRemainingSeconds(nowMillis: Long): Double {
@@ -103,10 +107,15 @@ class ActiveTimer(
     }
 
     private fun playSound(id: String) {
-        // Sound playback disabled for compile (ResourceLocation / client classes visibility in this env).
-        // In real run the sounds would play here using Minecraft sound manager.
-        val mc = Minecraft.getInstance()
-        // mc.soundManager.play(... ) would go here
+        try {
+            val location = Identifier.parse(id)
+            val mc = Minecraft.getInstance()
+            BuiltInRegistries.SOUND_EVENT.get(location).ifPresent { holder ->
+                mc.soundManager.play(SimpleSoundInstance.forUI(holder, 1.0f))
+            }
+        } catch (_: Exception) {
+            // Silently ignore invalid sound IDs
+        }
     }
 
     fun checkPreparationEndAndGetSound(nowMillis: Long): String? {

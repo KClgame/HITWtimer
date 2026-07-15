@@ -4,75 +4,154 @@ import com.kcl.hitwtimer.client.command.HitwCommands
 import com.kcl.hitwtimer.client.config.ConfigLoader
 import com.kcl.hitwtimer.client.config.HitwConfig
 import com.kcl.hitwtimer.client.detection.SubtitleDetector
+import com.kcl.hitwtimer.client.gui.HudEditScreen
 import com.kcl.hitwtimer.client.hud.HudRenderer
 import com.kcl.hitwtimer.client.timer.TimerManager
+import com.mojang.blaze3d.platform.InputConstants
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-// KeyBindingHelper import removed (may not resolve in this 26 env); keys appended via OptionsMixin instead
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
 
 object HITWtimerClient : ClientModInitializer {
     private val logger = LoggerFactory.getLogger("hitwtimer")
-    // Keys - appended via OptionsMixin so they show in Controls. Use vanilla Category to satisfy ctor in this mapping version.
-    @JvmField val keyToggleHud = KeyMapping("key.hitwtimer.toggle", GLFW.GLFW_KEY_H, KeyMapping.Category.MISC)
-    @JvmField val keyEditHud = KeyMapping("key.hitwtimer.edit", GLFW.GLFW_KEY_K, KeyMapping.Category.MISC)
-    @JvmField val keyReload = KeyMapping("key.hitwtimer.reload", GLFW.GLFW_KEY_L, KeyMapping.Category.MISC)
+
+    /** Dedicated Controls category: translation key = key.category.hitwtimer.main */
+    @JvmField
+    val KEY_CATEGORY: KeyMapping.Category = KeyMapping.Category.register(
+        Identifier.fromNamespaceAndPath("hitwtimer", "main")
+    )
+
+    @JvmField
+    val keyToggleHud: KeyMapping = KeyMapping(
+        "key.hitwtimer.toggle",
+        InputConstants.Type.KEYSYM,
+        GLFW.GLFW_KEY_H,
+        KEY_CATEGORY
+    )
+
+    @JvmField
+    val keyEditHud: KeyMapping = KeyMapping(
+        "key.hitwtimer.edit",
+        InputConstants.Type.KEYSYM,
+        GLFW.GLFW_KEY_K,
+        KEY_CATEGORY
+    )
+
+    @JvmField
+    val keyReload: KeyMapping = KeyMapping(
+        "key.hitwtimer.reload",
+        InputConstants.Type.KEYSYM,
+        GLFW.GLFW_KEY_L,
+        KEY_CATEGORY
+    )
+
+    /** All mod keybinds (used by OptionsMixin to ensure Controls list includes them). */
+    @JvmStatic
+    fun allKeyMappings(): Array<KeyMapping> = arrayOf(keyToggleHud, keyEditHud, keyReload)
 
     override fun onInitializeClient() {
         logger.info("HITWtimer client starting...")
 
-        // ensure configs
         ConfigLoader.ensureConfigExists()
         HitwConfig.reload()
 
-        // keys are appended into vanilla options via OptionsMixin (no KeyBindingHelper call needed here)
+        // Fabric registers into Options.keyMappings on Options.load().
+        // If Options already exists (late init), inject manually as well.
+        registerKeyMappings()
 
-        // commands
         HitwCommands.register()
 
-        // chat / subtitle receive (for detection)
         ClientReceiveMessageEvents.CHAT.register { message, _, _, _, _ ->
             SubtitleDetector.handleChat(message)
         }
-        // Note: subtitles are harder; we use GuiTitleMixin (or SubtitleOverlay) to call handleSubtitle
 
-        // tick
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             val now = System.currentTimeMillis()
             TimerManager.tick(now)
 
-            // key handling
             while (keyReload.consumeClick()) {
                 HitwConfig.reload()
                 SubtitleDetector.clearDedup()
                 client.player?.sendSystemMessage(Component.literal("§a[HITW] Reloaded configs + trap lists"))
             }
             while (keyEditHud.consumeClick()) {
-                HudRenderer.toggleEdit()
-                val on = HudRenderer.isEditing()
-                client.player?.sendSystemMessage(Component.literal("§e[HITW] HUD edit mode: $on (drag with mouse, scroll to scale, K again to save+exit)"))
+                // Toggle via screen: free mouse cursor is required for drag/scale
+                if (client.screen is HudEditScreen) {
+                    client.screen?.onClose()
+                } else if (client.screen == null) {
+                    HudRenderer.enterEdit()
+                    client.setScreen(HudEditScreen())
+                    client.player?.sendSystemMessage(
+                        Component.literal("§e[HITW] HUD edit: drag to move, scroll to scale, Esc/K to save")
+                    )
+                }
             }
             while (keyToggleHud.consumeClick()) {
-                // simple toggle visibility? for demo we just clear or log
-                if (TimerManager.hasAny()) {
-                    TimerManager.clear()
-                    client.player?.sendSystemMessage(Component.literal("§7[HITW] Cleared active timers"))
+                val visible = !HitwConfig.isHudVisible()
+                HitwConfig.setHudVisible(visible)
+                if (visible) {
+                    client.player?.sendSystemMessage(Component.literal("§a[HITW] HUD shown"))
                 } else {
-                    client.player?.sendSystemMessage(Component.literal("§7[HITW] HUD visible (no active)"))
+                    client.player?.sendSystemMessage(Component.literal("§7[HITW] HUD hidden"))
                 }
             }
         }
 
-        // HUD rendered via GuiMixin (see client mixin)
         logger.info("HITWtimer client initialized. Use /hitwtimer , keys L/K/H . Configs in config/hitwtimer/")
     }
 
-    // Called from mixin when subtitle/title text arrives
+    private fun registerKeyMappings() {
+        for (key in allKeyMappings()) {
+            try {
+                KeyMappingHelper.registerKeyMapping(key)
+            } catch (e: IllegalArgumentException) {
+                // Already registered (e.g. class reloaded in dev) — safe to ignore
+                logger.debug("Key mapping already registered: {}", key.name)
+            } catch (e: IllegalStateException) {
+                // Options already initialised — Fabric list was too late; OptionsMixin / force inject handle UI
+                logger.warn("KeyMappingHelper late: {} — will force-inject into Options", e.message)
+            }
+        }
+        // Belt-and-suspenders: ensure Controls screen can see them even if Fabric load() already ran
+        forceInjectIntoOptions()
+    }
+
+    /**
+     * If Options already exists and our keys are missing from keyMappings, append them.
+     * keyMappings is a final field; reassignment is done via reflection (same as mixin @Mutable).
+     */
+    @JvmStatic
+    fun forceInjectIntoOptions() {
+        val options = Minecraft.getInstance()?.options ?: return
+        val current = options.keyMappings ?: return
+        val ours = allKeyMappings()
+        val missing = ours.filter { k -> current.none { it === k } }
+        if (missing.isEmpty()) return
+
+        val merged = (
+            current.filter { existing ->
+                ours.none { it === existing || it.name == existing.name }
+            } + ours.toList()
+        ).toTypedArray()
+
+        try {
+            val field = options.javaClass.getDeclaredField("keyMappings")
+            field.isAccessible = true
+            field.set(options, merged)
+            logger.info("Injected {} HITWtimer keybind(s) into Options for Controls UI", missing.size)
+        } catch (e: Exception) {
+            // OptionsMixin still appends on load/construct; log for diagnostics
+            logger.warn("Could not force-inject keybinds into Options: {}", e.message)
+        }
+    }
+
     fun onSubtitle(component: Component) {
         SubtitleDetector.handleSubtitle(component)
     }

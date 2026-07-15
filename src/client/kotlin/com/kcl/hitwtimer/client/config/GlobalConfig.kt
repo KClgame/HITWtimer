@@ -19,8 +19,8 @@ data class GlobalConfig(
     // Global fallbacks for preparation (can be overridden by traplistconfig or trapconfig)
     val subtitlePreparationEnabled: Boolean = true,
     val preparationTime: Double = 3.0,
-    val preparationColor: Int = 0x55FF55,
-    val mainColor: Int = 0xFFFFFF,
+    val preparationColor: Int = 0xFF55FF55.toInt(),
+    val mainColor: Int = 0xFFFFFFFF.toInt(),
 
     // HUD global
     val hudX: Int = 10,

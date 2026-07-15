@@ -21,8 +21,9 @@ package com.kcl.hitwtimer.client.trap
  * listName: the traplist this belongs to, for resolving list defaults.
  *
  * NOTE: Do NOT include a "Preparation" stage in the events list.
- * Preparation phase (timing, "准备" label, start sound delay) is automatically
- * prepended ONLY for subtitle detections (when subtitlePreparation setting resolves to true).
+ * Preparation phase (timing, English "Preparation" label as first HUD stage row,
+ * start sound delay) is automatically prepended ONLY for subtitle detections
+ * (when subtitlePreparation setting resolves to true).
  * Chat detections always have preparationSeconds=0.
  */
 data class TrapDefinition(

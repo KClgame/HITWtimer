@@ -92,4 +92,38 @@ object HitwConfig {
     fun save() {
         ConfigLoader.save(global)
     }
+
+    fun getCurrentGlobalConfig(): GlobalConfig = global
+
+    fun updateGlobal(newGlobal: GlobalConfig) {
+        global = newGlobal
+    }
+
+    fun getTrapsForList(listName: String): List<TrapDefinition> {
+        return loadedTraps.filter { it.listName == listName }
+    }
+
+    fun getAllListNames(): List<String> = ConfigLoader.loadAllListNames()
+
+    fun createNewList(name: String) {
+        ConfigLoader.createNewList(name)
+        reload()
+    }
+
+    fun deleteList(listName: String): Boolean {
+        val ok = ConfigLoader.deleteList(listName)
+        if (ok) reload()
+        return ok
+    }
+
+    fun saveTrapList(listName: String, traps: List<TrapDefinition>, listConfig: TrapListConfig? = null) {
+        ConfigLoader.saveTrapList(listName, traps, listConfig)
+        reload()
+    }
+
+    @Volatile
+    private var hudVisible: Boolean = true
+
+    fun isHudVisible(): Boolean = hudVisible
+    fun setHudVisible(visible: Boolean) { hudVisible = visible }
 }

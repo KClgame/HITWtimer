@@ -1,301 +1,347 @@
 # HITWtimer
 
-**纯客户端 Fabric Kotlin 模组**（适用于 Minecraft 26.1.2），用于 HITW（Hole in the Wall）等小游戏的陷阱（trap）检测与多阶段计时。
+**纯客户端 Fabric + Kotlin 模组** · Minecraft **26.1.2** · 作者 **KCl** · 许可证 **CC0-1.0**
 
-主要特性：字幕/聊天双源检测、严格可控的准备阶段（Preparation）、多阶段事件计时器 + 声音/颜色、**自适应深色 HUD**（支持拖拽 + 滚轮缩放实时编辑并自动保存）、热重载、运行时多列表启停、**3 级配置系统**、可自定义检测 pattern + 匹配模式（支持正则）、双语支持。
+面向 **HITW（Hole in the Wall）** 等小游戏：根据屏幕**字幕 / 标题**或**聊天**自动识别陷阱（trap），并在 HUD 上显示**多阶段倒计时**（含可选 Preparation 准备阶段、颜色与音效提示）。
 
----
-
-## 功能特性 (Features)
-
-- **检测系统**
-  - 主要通过字幕/标题 (Subtitle/Title) 检测（GuiTitleMixin 注入）
-  - 同时支持聊天 (Chat) 检测
-  - 每个 trap 可独立设置 `source=SUBTITLE | CHAT | BOTH`
-  - 去重机制（消息 + 同名 trap 触发间隔）
-
-- **准备阶段 (Preparation) 严格语义**
-  - 仅在 **subtitle 来源** 且 `subtitle_preparation` 允许时自动插入
-  - `subtitle_preparation=false`（在 trap 级）是**严格无准备**，完全忽略列表/全局设置
-  - Chat 来源**永远没有**准备阶段（preparationSeconds=0）
-  - 准备阶段的 label、时长、颜色、声音延迟均自动处理，**用户 events 里不要写“准备”**
-
-- **多阶段计时器**
-  - 每个 trap 定义多个事件（阶段）
-  - 每个阶段可独立设置 offset 时间、显示文本、颜色、播放声音
-  - 准备阶段结束后自动播放 start_sound，全部结束后播放 end_sound
-  - 实时剩余时间 + 当前阶段 label 显示
-
-- **HUD**
-  - 自适应深色半透明背景（可关闭）
-  - 拖拽移动位置 + 鼠标滚轮缩放（编辑模式）
-  - K 键切换编辑模式，退出时自动保存 HUD 位置/缩放到 overallconfig.txt
-  - 支持多个同时激活的计时器（当前取第一个显示）
-
-- **按键绑定**（完整出现在原版「控制」菜单里）
-  - `H`：切换/清除当前计时器（Toggle/Clear Timers）
-  - `K`：进入/退出 HUD 编辑模式（HUD Edit Mode (drag+scroll)）
-  - `L`：热重载所有配置 + trap 列表（Reload Configs + Lists）
-  - 通过 `OptionsMixin` 注入实现，无需 KeyBindingHelper
-
-- **配置热重载与运行时控制**
-  - L 键 或启动时自动加载
-  - 配置文件修改后按 L 即可生效（会清空去重缓存）
-  - 完整命令支持运行时列表启停：`/hitwtimer list | reload | enable <name> | disable <name>`
-  - `/hitwtimer list` 显示当前启用的列表（彩色：列表名绿色 + 描述灰色）
-
-- **强大的 3 级配置系统**（见下文详细说明）
-- **灵活的检测匹配**
-  - `pattern=` 支持 `关键词1|关键词2|...`（OR）
-  - 4 种 `match_mode`：`CONTAINS`（默认）、`EQUALS`、`STARTS_WITH`、`REGEX`
-  - `case_sensitive=false`（默认不区分大小写）
-- **事件格式**：`事件名|持续秒数|颜色(可选)|声音(可选)`
-- **双语**：中英双语 lang 文件 + 配置模板注释
-- **Debug 模式**：`debug=true` 时控制台打印每次匹配详情 + 聊天显示启动信息
+> 本模组**不修改服务端玩法**，只在客户端读字幕/聊天并画 HUD，可在 Hypixel 等服务器正常使用。
 
 ---
 
-## 按键 (Keybinds)
+## 目录
 
-所有按键均通过 Mixin 正确注册到原版 Controls 菜单的「杂项」分类下（`key.categories.misc`），重启游戏后即可在设置里查看和修改。
-
-- H - Toggle/Clear Timers（切换/清除计时器）
-- K - HUD Edit Mode（拖拽 + 滚轮缩放，退出自动保存）
-- L - Reload Configs + Lists（热重载）
+1. [功能一览](#功能一览)
+2. [安装与依赖](#安装与依赖)
+3. [快速开始](#快速开始)
+4. [快捷键](#快捷键)
+5. [命令](#命令)
+6. [HUD 说明](#hud-说明)
+7. [使用案例：Falling Sand](#使用案例falling-sand)
+8. [配置系统总览](#配置系统总览)
+9. [overallconfig.txt（全局配置）](#overallconfigtxt全局配置)
+10. [traplist 文件（陷阱列表）](#traplist-文件陷阱列表)
+11. [怎么写一个 Trap](#怎么写一个-trap)
+12. [检测匹配详解](#检测匹配详解)
+13. [Preparation 准备阶段](#preparation-准备阶段)
+14. [事件（events）格式](#事件events格式)
+15. [调试技巧](#调试技巧)
+16. [构建](#构建)
+17. [文件结构](#文件结构)
+18. [常见问题](#常见问题)
 
 ---
 
-## 命令 (Commands)
+## 功能一览
 
+| 模块 | 说明 |
+|------|------|
+| **字幕 / 聊天检测** | 通过 Title/Subtitle Mixin + 聊天事件匹配 trap；可按 trap 指定 `SUBTITLE` / `CHAT` / `BOTH` |
+| **多阶段计时** | 每个 trap 配置多个阶段；HUD 显示当前阶段倒计时 + 后续阶段预览 |
+| **Preparation** | 字幕触发时可自动在阶段列表**第一行**插入英文 `Preparation` 倒计时（chat 触发永不插入） |
+| **HUD** | 深色半透明背景、多 trap 同时显示、颜色可配 |
+| **HUD 编辑** | 按 K 打开编辑层：拖动位置、滚轮缩放、Esc/K 保存 |
+| **三级配置** | overall（全局）→ traplist 头部默认 → 单个 trap 覆盖 |
+| **多列表** | 多个 `traplist*.txt`，命令运行时 enable/disable |
+| **热重载** | 按 L 或 `/hitwtimer reload` 即时生效 |
+| **按键绑定** | 出现在原版「控制 → 按键绑定」的 **HITWtimer / HITW 计时器** 分类下 |
+| **双语** | `en_us` / `zh_cn` 语言文件；配置模板中英注释 |
+
+---
+
+## 安装与依赖
+
+| 依赖 | 版本要求 |
+|------|----------|
+| Minecraft | ~26.1.2 |
+| Fabric Loader | ≥ 0.19.2 |
+| Fabric API | 与 26.1.2 匹配 |
+| Fabric Language Kotlin | 与环境匹配 |
+| Java | ≥ 25 |
+
+将构建产物 `hitwtimer-*.jar` 放入 `.minecraft/mods/`，与 Fabric 一起启动客户端即可。
+
+首次启动会自动在：
+
+```text
+.minecraft/config/hitwtimer/
 ```
+
+生成示例配置（`overallconfig.txt`、`traplist1.txt` 等）。
+
+---
+
+## 快速开始
+
+1. 安装模组并进入游戏。
+2. 确认 `config/hitwtimer/overallconfig.txt` 里：
+   ```properties
+   enabled=true
+   enabled_lists=traplist1
+   detect_subtitle=true
+   ```
+3. 编辑 `config/hitwtimer/traplist1.txt`，写好 trap 的 `pattern=`（必须与游戏实际字幕/聊天文字匹配）。
+4. 游戏内按 **L** 热重载（或 `/hitwtimer reload`）。
+5. 进入 HITW；当字幕出现匹配文字时，HUD 自动开始计时。
+6. 按 **K** 调整 HUD 位置与大小，再按 Esc/K 保存。
+
+建议调试时临时打开：
+
+```properties
+debug=true
+```
+
+匹配时会在控制台打日志，触发时聊天也会有提示。
+
+---
+
+## 快捷键
+
+均可在 **选项 → 控制 → 按键绑定 → HITW 计时器 / HITWtimer** 中修改。
+
+| 默认键 | 名称 | 功能 |
+|--------|------|------|
+| **H** | 切换 HUD 显示 | 显示 / 隐藏计时 HUD（不清除正在跑的计时器逻辑，只控制是否绘制） |
+| **K** | HUD 编辑模式 | 打开半透明编辑层：左键拖动移动、滚轮缩放；**Esc** 或再按 **K** 保存并退出 |
+| **L** | 重载配置 | 重新加载 `overallconfig` + 所有启用的 traplist，并清空检测去重缓存 |
+
+### HUD 编辑模式细节
+
+- 必须打开编辑 Screen 才能拖动（游戏内鼠标锁定时无法自由拖拽，因此用 Screen 释放光标）。
+- 编辑时即使没有激活 trap，也会显示占位面板，方便定位。
+- 退出时写入 `overallconfig.txt` 的 `hud_x` / `hud_y` / `hud_scale`。
+
+---
+
+## 命令
+
+客户端命令（聊天中输入）：
+
+```text
 /hitwtimer
 /hitwtimer list
 /hitwtimer reload
 /hitwtimer enable <name>
 /hitwtimer disable <name>
+/hitwtimer settings
 ```
 
-- `list`：列出当前启用的 traplist（来自 overallconfig 的 enabled_lists），带彩色输出（列表名绿色 + description 灰色）。示例：
-  ```
-  §a当前启用的列表：
-    §f- §atraplist1 §7经典HITW陷阱列表 / Classic HITW Trap List (示例)
-  ```
+| 命令 | 作用 |
+|------|------|
+| `/hitwtimer` | 显示可用子命令 |
+| `list` | 列出当前启用的 traplist（绿字名称 + 灰字 description） |
+| `reload` | 等同按 **L**：重载配置与列表 |
+| `enable <name>` | 启用名为 `name` 的列表（文件名不含 `.txt`，如 `traplist1`），并自动 reload |
+| `disable <name>` | 禁用该列表并 reload |
+| `settings` | 打开简易设置界面（预览全局配置等） |
 
-- `reload`：立即重载 overallconfig + 所有启用的 traplist（等同于按 L 键）。
-
-- `enable <name>` / `disable <name>`：运行时启用或禁用某个列表（name 为文件名不含 .txt，例如 `traplist1`）。执行后会自动 reload 生效。列表必须先存在于 config 目录。
-
-这些命令让多列表管理非常灵活（例如一个 pvp 列表 + 一个经典 HITW 列表，按需切换）。
+列表文件必须先存在于 `config/hitwtimer/`。`enable`/`disable` 会改运行时启用集合；若要长期固定，请同步改 `overallconfig.txt` 的 `enabled_lists=`。
 
 ---
 
-## 配置系统 (Config System) —— 核心
+## HUD 说明
 
-### 目录与文件
+### 显示结构
 
-首次运行（或 `ensureConfigExists`）会在 `config/hitwtimer/` 下自动创建：
+每个激活的 trap 大致如下：
 
-- `overallconfig.txt` —— **全局 / 模组级** 配置
-- `traplist1.txt`（或其他你自己创建的 `xxx.txt`） —— **列表文件**
-
-在 `overallconfig.txt` 的 `enabled_lists=traplist1,另一个列表` 控制加载哪些列表。
-
-**运行时可用文件名（不含 .txt）通过命令或代码控制启停**（当前 list 已支持显示）。
-
-### 3 级优先级（从高到低）
-
-1. **trapconfig**（单个 `name=xxx` 块里的设置）
-2. **traplistconfig**（`traplist*.txt` 第一个 `name=` 之前的头部设置，作为该列表的默认值）
-3. **overallconfig**（全局回退）
-
-**特殊规则**：
-- `subtitle_preparation=false` 在 trap 级是**严格优先**，即使列表/全局为 true 也强制无准备阶段。
-- 其他字段（颜色、时间、声音、match mode 等）正常三层回退。
-
-### overallconfig.txt 格式与所有可用键
-
-```properties
-# HITWtimer Overall Config (overallconfig.txt)
-# This is the TOP-LEVEL / MOD-LEVEL configuration.
-# ...
-
-# --- Master ---
-enabled=true
-
-# --- Lists (which traplist*.txt to load) ---
-enabled_lists=traplist1
-# 多个用逗号分隔: enabled_lists=traplist1,pvp,自定义
-
-# --- Detection ---
-detect_subtitle=true
-detect_chat=true
-
-# --- Preparation defaults (fallbacks) ---
-subtitle_preparation=true
-preparation_time=3.0
-preparation_color=#55FF55
-main_color=#FFFFFF
-
-# --- HUD appearance and position (editable in-game with edit mode) ---
-hud_x=10
-hud_y=10
-hud_scale=1.0
-render_background=true
-hud_horizontal_padding=8
-hud_vertical_padding=6
-
-# --- Behavior ---
-auto_reload_keywords=hitw,hole in the wall,游戏开始
-
-# --- Misc ---
-debug=false
-#   true 时：
-#   - 每次 subtitle/chat 匹配都会打印详细日志到控制台
-#   - 触发 trap 时聊天显示启动信息（含准备时长、列表名）
-#   - 适合调试为什么某个陷阱没触发
-#   日常使用保持 false，避免刷屏
+```text
+falling sand  18.0s          ← trap 名 + 总剩余时间
+  Preparation  3.0s          ← 自动插入的第一阶段（仅字幕+允许时）
+  stop falling               ← 后续阶段（未到则灰色预览）
+  sands gone
 ```
 
-**完整键说明**（解析时大小写不敏感，`_` 可省）：
+准备结束后：
+
+```text
+falling sand  15.0s
+  Preparation                ← 已过：灰色、无倒计时
+  stop falling  10.0s        ← 当前阶段：彩色 + 倒计时
+  sands gone                 ← 未到：灰色预览
+```
+
+- **Preparation** 标签固定为英文 `Preparation`，作为 trap 阶段列表的**第一行**（与其它事件同一列）。
+- 不要在 `events=` 里手动写 Preparation 行。
+- 多个 trap 同时触发时会纵向排列，中间空行分隔。
+
+### 外观相关配置（overallconfig）
 
 | 键 | 默认 | 说明 |
 |----|------|------|
-| enabled | true | 模组总开关 |
-| enabled_lists | traplist1 | 要加载的列表文件名列表（逗号分隔，不带.txt） |
-| detect_subtitle / detect_chat | true | 是否启用对应来源检测 |
-| subtitle_preparation | true | 全局准备阶段默认（可被列表/trap 覆盖） |
-| preparation_time | 3.0 | 全局准备秒数 |
-| preparation_color / main_color | #55FF55 / #FFFFFF | 颜色（#RRGGBB 或 RRGGBB） |
-| hud_x / hud_y / hud_scale | 10 / 10 / 1.0 | HUD 初始位置与缩放（编辑模式会覆盖保存） |
-| render_background | true | 是否绘制深色背景 |
-| hud_*_padding | 8 / 6 | HUD 背景内边距 |
-| auto_reload_keywords | hitw,... | 预留：检测到这些关键词时可自动 reload（当前部分实现） |
-| debug | false | 详细调试输出 |
+| `hud_x` / `hud_y` | 10 / 10 | 左上角位置（GUI 坐标，可用 K 编辑） |
+| `hud_scale` | 1.0 | 缩放 0.4～4.0 |
+| `render_background` | true | 是否画深色半透明底 |
+| `hud_horizontal_padding` | 8 | 背景水平内边距 |
+| `hud_vertical_padding` | 6 | 背景垂直内边距 |
 
-保存 HUD 编辑结果时会调用 `ConfigLoader.save`，只更新 overallconfig.txt 中的 HUD 相关项。
+---
 
-### traplist*.txt 格式（traplistconfig + trapconfig）
+## 使用案例：Falling Sand
 
-文件结构：
+以 HITW 常见陷阱 **Falling Sand（落沙）** 为例，完整走通「配置 → 检测 → 显示」。
 
+### 1. 场景
+
+游戏字幕/标题出现类似：
+
+```text
+Falling Sand
 ```
-# HITWtimer 陷阱列表: traplist1
-# ... 说明注释
 
-# ==================== traplistconfig (本列表的状态 + 默认配置) ====================
-# 必须放在第一个 name= 之前
+或聊天/其它文案含 `sand`。你希望：
+
+1. 先有 **3 秒 Preparation**（站位准备）
+2. 再倒计时 **10 秒** 到「stop falling」
+3. 再 **5 秒** 到「sands gone」
+
+### 2. 在 traplist1.txt 中写入
+
+```properties
+# 列表头部默认（第一个 name= 之前）
 enabled=true
-description=经典HITW陷阱列表 / Classic HITW Trap List (示例)
+description=Classic HITW traps
 
-# 此列表的默认值（trap 未定义时使用）
 subtitle_preparation=true
 preparation_time=3.0
 preparation_color=#55FF55
 main_color=#FFFFFF
-start_sound=block.note_block.pling
-end_sound=block.note_block.bell
 source=SUBTITLE
-enabled=true
-
-# 检测默认 (可选)
 match_mode=CONTAINS
 case_sensitive=false
-# pattern=   (列表级较少使用)
 
-# ==================== 陷阱配置 (Trap Configurations) ====================
-# 下面是多个陷阱定义
-
+# ---------- 单个 trap ----------
 name=falling sand
 enabled=true
 source=SUBTITLE
 subtitle_preparation=true
 main_color=#FFAA00
-start_sound=block.fire.extinguish
-end_sound=block.fire.extinguish
-pattern=falling sand|sand   # 支持|分隔多个匹配词 (必填)
+preparation_time=3.0
+preparation_color=#55FF55
+start_sound=block.note_block.pling
+end_sound=block.note_block.bell
+pattern=falling sand|sand
 match_mode=CONTAINS
 case_sensitive=false
 events=
   stop falling|10|#FF5500|entity.blaze.shoot
-  sands gone|5.0|
+  sands gone|15|
 ```
 
-**traplistconfig 头部支持的键**（作为列表默认）：
+> **关于 events 时间**：实现里各阶段的时间为相对「主阶段开始」（Preparation 结束后）的**绝对偏移秒数**，按数值排序。  
+> 上例中 `stop falling` 在 prep 结束后 **10s** 处，`sands gone` 在 **15s** 处（即 stop falling 后再约 5s）。  
+> 若写成 `sands gone|5`，会排在 10 之前，顺序会与预期相反。
 
-- `enabled`、`description`（description 用于 `/hitwtimer list` 显示）
-- 所有 trap 级的可选字段前加 `default` 或直接写（解析会读取 `source`、`subtitle_preparation`、`match_mode` 等）
-- 检测相关：`match_mode`、`case_sensitive`、`pattern`
+### 3. 确保列表已启用
 
-### 单个 Trap 的必填与可选配置
+`overallconfig.txt`：
 
-**必须 (Required)**：
-- `name=唯一标识`（陷阱唯一 ID，同时用于 HUD 显示回退）
-- `pattern=...` （必填，检测匹配的字幕/聊天关键词，支持 `关键词1|关键词2` 作为 OR）
-- `events=` + 至少一行事件（可多行缩进）
-
-**可选 (Optional，未填则用列表默认 → overall)**：
-
-- `enabled=true/false`
-- `source=SUBTITLE/CHAT/BOTH`
-- `subtitle_preparation=true/false` （**false 是严格无准备**）
-- `main_color=#RRGGBB`
-- `preparation_time=2.5`、`preparation_color=#...`
-- `start_sound=...`、`end_sound=...`
-- `match_mode=CONTAINS`（默认） / `EQUALS` / `STARTS_WITH` / `REGEX`
-- `case_sensitive=false`（默认）
-
-**事件格式（推荐）**：
-```
-事件显示名|偏移秒数|颜色(可选)|声音ID(可选)
+```properties
+enabled=true
+enabled_lists=traplist1
+detect_subtitle=true
+subtitle_preparation=true
+preparation_time=3.0
 ```
 
-示例：
-```
-  stop falling|10|#FF5500|entity.blaze.shoot
-  sands gone|5.0|
+游戏内执行：
+
+```text
+/hitwtimer reload
 ```
 
-颜色回退顺序：事件指定 > 该 trap 的 main_color > 列表 defaultMainColor > overall main_color > 白色
+或按 **L**。
 
-**重要**：`events` 里**绝对不要**写准备阶段！准备完全由检测来源 + `subtitle_preparation` 自动决定并在 `ActiveTimer` 内部处理（显示“准备: xxx”、延迟 start_sound 等）。
+### 4. 时间线（字幕触发）
+
+| 时刻 | HUD 表现 |
+|------|----------|
+| t=0 字幕匹配 | 出现 `falling sand`，第一行 `Preparation 3.0s…`，下面灰色预览两个事件 |
+| t=3 | Preparation 结束，播放 `start_sound`，进入 `stop falling` 倒计时 |
+| t=13 | 到达 stop falling 节点（可播事件音），进入下一阶段 |
+| t=18 | 到达 sands gone，计时结束，播放 `end_sound` |
+
+### 5. 若字幕对不上
+
+1. 设 `debug=true`，重载后看控制台匹配日志。  
+2. 把 `pattern` 改成字幕**实际原文**（可先用 `CONTAINS` 缩短关键词）。  
+3. 确认语言/大小写：`case_sensitive=false` 时不区分大小写。  
+4. 确认 `source` 与检测源一致（字幕用 `SUBTITLE` 或 `BOTH`）。
+
+### 6. 若不想要 Preparation
+
+```properties
+name=falling sand
+subtitle_preparation=false
+pattern=falling sand
+events=
+  stop falling|10
+  sands gone|15
+```
+
+`subtitle_preparation=false` 在 **trap 级为严格优先**：即使列表/全局为 true，该 trap 也**绝无**准备阶段。
+
+### 7. 若只想从聊天触发、不要准备
+
+```properties
+name=falling sand
+source=CHAT
+pattern=falling sand
+events=
+  stop falling|10
+  sands gone|15
+```
+
+Chat 来源**永远不会**插入 Preparation。
 
 ---
 
-## 完整示例配置文件 (Full Example Configs)
+## 配置系统总览
 
-以下是项目中 `ConfigLoader` 生成的**最新完整示例文件内容**（带所有中英双语注释，pattern 作为必填变量）。你可以直接复制到 `config/hitwtimer/` 下使用，然后根据实际游戏字幕/聊天内容微调 `pattern`。
+```text
+config/hitwtimer/
+├── overallconfig.txt     # 全局 / 模组级
+├── traplist1.txt         # 列表 1（头部 = 列表默认 + 多个 name= trap）
+├── traplist2.txt         # 你可自建更多
+└── ...
+```
 
-推荐先把 `debug=true` 打开，用 L 键重载后在控制台观察匹配情况。
+### 三级优先级（高 → 低）
 
-### overallconfig.txt
+1. **trapconfig**：某个 `name=` 块内的字段  
+2. **traplistconfig**：该 txt 里**第一个 `name=` 之前**的头部默认  
+3. **overallconfig**：全局回退  
+
+**特例**：trap 级 `subtitle_preparation=false` **严格无准备**，不回退列表/全局的 true。
+
+解析时键名**大小写不敏感**，下划线可省略（如 `preparation_time` / `preparationtime`）。
+
+---
+
+## overallconfig.txt（全局配置）
+
+### 完整示例
 
 ```properties
-# HITWtimer Overall Config (overallconfig.txt)
-# This is the TOP-LEVEL / MOD-LEVEL configuration.
-# It controls the entire mod behavior, HUD defaults, detection, and initial lists.
-# 
-# Trap list specific defaults (traplistconfig) go at the top of each traplist*.txt
-# Individual trap settings (trapconfig) go under name= sections in traplist*.txt
-# You can control lists at runtime with: /hitwtimer enable <name> / disable <name> / reload
+# HITWtimer Overall Config
 
 # --- Master ---
 enabled=true
 
-# --- Lists (which traplist*.txt to load) ---
+# --- Lists（要加载的列表文件名，逗号分隔，不要写 .txt）---
 enabled_lists=traplist1
-# Example for multiple: enabled_lists=traplist1,pvp,custom
+# enabled_lists=traplist1,pvp,custom
 
 # --- Detection ---
 detect_subtitle=true
 detect_chat=true
 
-# --- Preparation defaults (fallbacks) ---
+# --- Preparation defaults（可被 list/trap 覆盖）---
 subtitle_preparation=true
 preparation_time=3.0
 preparation_color=#55FF55
 main_color=#FFFFFF
 
-# --- HUD appearance and position (editable in-game with edit mode) ---
+# --- HUD（可用游戏内 K 编辑后自动写回）---
 hud_x=10
 hud_y=10
 hud_scale=1.0
@@ -308,150 +354,323 @@ auto_reload_keywords=hitw,hole in the wall,游戏开始
 
 # --- Misc ---
 debug=false
-#   When true:
-#   - Prints detailed match info to console for every subtitle/chat detection.
-#   - Shows extra "trap started" message in chat (with prep time and list name).
-#   - Helps debug why traps trigger or don't.
-#   Keep false for normal play to avoid spam.
 ```
 
-### traplist1.txt （推荐的示例列表，使用 falling sand 作为演示 trap）
+### 键说明
+
+| 键 | 默认 | 说明 |
+|----|------|------|
+| `enabled` | true | 模组总开关 |
+| `enabled_lists` | traplist1 | 启动时加载的列表 |
+| `detect_subtitle` | true | 是否检测字幕/标题 |
+| `detect_chat` | true | 是否检测聊天 |
+| `subtitle_preparation` | true | 全局：字幕是否默认带 Preparation |
+| `preparation_time` | 3.0 | 默认准备秒数 |
+| `preparation_color` | #55FF55 | 准备阶段颜色 |
+| `main_color` | #FFFFFF | 默认事件颜色 |
+| `hud_*` | 见上 | HUD 位置/缩放/背景 |
+| `auto_reload_keywords` | … | 预留关键词（部分逻辑） |
+| `debug` | false | 详细匹配日志 + 触发聊天提示 |
+
+颜色支持 `#RRGGBB` 或 `RRGGBB`。
+
+---
+
+## traplist 文件（陷阱列表）
+
+### 文件命名
+
+- 任意名，如 `traplist1.txt`、`pvp.txt`、`mytraps.txt`  
+- 在 `enabled_lists` 或 `/hitwtimer enable <name>` 中用**不带扩展名**的名字  
+
+### 文件结构
+
+```text
+# 注释任意
+
+# ===== traplistconfig：头部默认（必须在第一个 name= 之前）=====
+enabled=true
+description=经典 HITW 列表
+subtitle_preparation=true
+preparation_time=3.0
+...
+
+# ===== 一个或多个 trap =====
+name=trap_a
+pattern=...
+events=
+  ...
+
+name=trap_b
+pattern=...
+events=
+  ...
+```
+
+### 头部常用键
+
+| 键 | 说明 |
+|----|------|
+| `enabled` | 列表是否启用（列表本身） |
+| `description` | `/hitwtimer list` 里显示的说明 |
+| `subtitle_preparation` | 本列表 trap 的默认是否准备 |
+| `preparation_time` / `preparation_color` | 本列表准备默认 |
+| `main_color` | 本列表默认主色 |
+| `start_sound` / `end_sound` | 默认开始/结束音效 ID |
+| `source` | 默认检测源 |
+| `match_mode` / `case_sensitive` | 默认匹配方式 |
+
+---
+
+## 怎么写一个 Trap
+
+### 必填
+
+| 字段 | 说明 |
+|------|------|
+| `name=` | 唯一 ID，也作 HUD 标题回退 |
+| `pattern=` | 匹配字幕/聊天的关键词（支持 `a\|b\|c` OR） |
+| `events=` + 至少一行阶段 | 阶段列表 |
+
+### 可选（不写则 list → overall）
+
+| 字段 | 说明 |
+|------|------|
+| `enabled` | true/false |
+| `source` | `SUBTITLE` / `CHAT` / `BOTH` |
+| `subtitle_preparation` | true/false（false = 严格无准备） |
+| `preparation_time` | 秒 |
+| `preparation_color` | `#RRGGBB` |
+| `main_color` | 事件默认色 |
+| `start_sound` / `end_sound` | 原版音效 ID，如 `block.note_block.pling` |
+| `match_mode` | `CONTAINS` / `EQUALS` / `STARTS_WITH` / `REGEX` |
+| `case_sensitive` | 默认 false |
+
+### 最小可用示例
 
 ```properties
-# HITWtimer 陷阱列表: traplist1
-# 此文件只放陷阱定义。可在 overallconfig.txt 的 enabled_lists 中引用本文件名(不带.txt)
-# 运行时用 /hitwtimer enable traplist1 启用，disable 禁用。支持多个列表同时激活。
+name=my_trap
+pattern=关键词
+events=
+  phase1|5
+  phase2|10
+```
 
-# ==================== traplistconfig (本列表的状态 + 默认配置) ====================
-# 放在第一个 name= 之前
-# list status
+### 完整示例模板（可复制）
+
+```properties
+name=your_trap_id
 enabled=true
-description=经典HITW陷阱列表 / Classic HITW Trap List (示例)
-
-# 此列表的默认值（trap 未定义时使用）
+source=SUBTITLE
 subtitle_preparation=true
 preparation_time=3.0
 preparation_color=#55FF55
 main_color=#FFFFFF
 start_sound=block.note_block.pling
 end_sound=block.note_block.bell
-source=SUBTITLE
-enabled=true
-
-# 检测默认 (可选)
-match_mode=CONTAINS
-case_sensitive=false
-
-# ==================== 陷阱配置 (Trap Configurations) ====================
-# 每个陷阱以 name= 开头
-# 必须: name= 、 pattern= (必填) 、和至少一个事件
-# 可选字段不填则使用上面的列表默认值（再回退 overallconfig）
-#
-# 重要：Preparation 准备阶段 **不需要** 在 events 中写！
-# 它由检测来源自动决定：
-# - subtitle 检测 + subtitle_preparation 允许 → 自动插入准备
-# - chat 检测 → 绝不插入准备
-#
-# 事件格式: eventname|time|color(可选)|sound(可选)
-# color 不填 → 使用本陷阱的 main_color
-#
-# 检测相关:
-#   pattern=...          (必填，匹配关键词，支持 a|b|c 作为OR)
-#   match_mode=CONTAINS/EQUALS/STARTS_WITH/REGEX
-#   case_sensitive=false
-
-name=falling sand
-enabled=true
-source=SUBTITLE
-subtitle_preparation=true
-main_color=#FFAA00
-start_sound=block.fire.extinguish
-end_sound=block.fire.extinguish
-pattern=falling sand|sand   # 支持|分隔多个匹配词 (必填)
+pattern=english text|中文关键词
 match_mode=CONTAINS
 case_sensitive=false
 events=
-  stop falling|10|#FF5500|entity.blaze.shoot
-  sands gone|5.0|
-
-# 你可以继续添加更多陷阱...
-# name=your_new_trap
-# enabled=true
-# pattern=你的关键词|english   # 必填
-# match_mode=CONTAINS
-# events=
-#   阶段1|1.0
-#   阶段2|2.5|#FF00FF|block.anvil.land
+  stage one|5.0|#FFAA00|entity.experience_orb.pickup
+  stage two|12.0|
+  stage three|20.0|#55FFFF|
 ```
 
-**提示**：这些示例已经包含在 `generated-config-examples/` 目录和首次运行时自动创建的 `config/hitwtimer/` 下。你也可以直接从本 README 复制最新版本。
+---
+
+## 检测匹配详解
+
+匹配在 `SubtitleDetector` 中进行：对每个启用 trap，用其 `pattern` + `match_mode` + `case_sensitive` 测 `component.string`。
+
+### pattern
+
+- **必填**  
+- 非 REGEX 时：`a|b|c` 表示 **OR**（任一命中即可）  
+- REGEX 时：整段作正则，`|` 为正则语法  
+
+### match_mode
+
+| 模式 | 行为 |
+|------|------|
+| `CONTAINS`（默认） | 文本包含 pattern |
+| `EQUALS` | 整段相等 |
+| `STARTS_WITH` | 以 pattern 开头 |
+| `REGEX` | 正则 `containsMatchIn` |
+
+### 示例
+
+| pattern | mode | 能匹配的例子 |
+|---------|------|----------------|
+| `falling sand\|sand` | CONTAINS | `Falling Sand!`、`sand is coming` |
+| `Falling Sand` | EQUALS | 仅整段等于（受 case_sensitive 影响） |
+| `anvil.*fall` | REGEX | `Anvil is falling` |
+
+### 来源过滤
+
+- `source=SUBTITLE`：只响应字幕/标题  
+- `source=CHAT`：只响应聊天  
+- `source=BOTH`：两者皆可  
+
+全局还需 `detect_subtitle` / `detect_chat` 为 true。
+
+### 去重
+
+短时间内相同消息 / 同名 trap 不会重复狂触发，避免字幕刷新刷屏。
 
 ---
 
-## 检测匹配详解 (Pattern & Match Mode)
+## Preparation 准备阶段
 
-匹配发生在 `SubtitleDetector.handleSubtitle` / `handleChat` 中：
+| 规则 | 行为 |
+|------|------|
+| 字幕触发 + `subtitle_preparation` 解析为 true | 自动插入 Preparation |
+| 字幕触发 + trap 级 `subtitle_preparation=false` | **严格无准备** |
+| 聊天触发 | **永远无准备** |
+| HUD 文案 | 固定英文 **`Preparation`**，作为阶段列表第一行 |
+| 时长 / 颜色 | trap → list → overall 的 `preparation_time` / `preparation_color` |
+| `start_sound` | 在 Preparation **结束**、进入主阶段时播放 |
 
-- 只匹配 `source` 允许的 trap
-- 使用 `trap.matches(text)`（text 来自 `component.string`）
-- `pattern` 是必填字段
-- 支持 `pattern=词A|词B|词C`（CONTAINS/EQUALS/STARTS_WITH 下自动 OR）
-- REGEX 模式下直接使用正则（支持 `.*` 等），大小写由 `case_sensitive` 控制
-
-示例效果：
-- `pattern=falling sand|sand` + CONTAINS → 字幕含「falling sand」或「sand」即可触发
-- `pattern=anvil.*fall` + REGEX → 匹配 "Anvil is falling" 等（如果使用该模式）
-
----
-
-## HUD 编辑流程
-
-1. 按 `K` 进入编辑模式（聊天提示）
-2. 鼠标左键按住拖拽 HUD 位置
-3. 鼠标滚轮调整缩放（0.4 ~ 4.0）
-4. 再次按 `K` 退出 → 自动调用 `HitwConfig.save()` 写回 `overallconfig.txt` 的 `hud_x/y/scale`
+**不要**在 `events=` 里写 Preparation 行。
 
 ---
 
-## 构建与使用
+## 事件（events）格式
+
+```text
+events=
+  显示名|偏移秒数|颜色(可选)|声音(可选)
+```
+
+| 段 | 必填 | 说明 |
+|----|------|------|
+| 显示名 | 是 | HUD 上显示的阶段名 |
+| 偏移秒数 | 是 | 相对 **Preparation 结束后**（无 prep 则相对触发时刻）的绝对时间点（秒） |
+| 颜色 | 否 | `#RRGGBB`；缺省用 trap `main_color` → list → overall → 白 |
+| 声音 | 否 | 原版 `namespace:path` 风格音效 ID |
+
+多行缩进写在 `events=` 下方。实现会按偏移秒数排序。
+
+### 颜色回退顺序
+
+事件指定 → trap `main_color` → list 默认 → overall `main_color` → 白色。
+
+### 编写建议
+
+- 用递增的时间点表示阶段边界，例如 `5`、`12`、`20`，而不是把「每段时长」写成乱序小数。  
+- 事件名用你容易看懂的英文/中文均可（Preparation 本身除外，那是自动的）。
+
+---
+
+## 调试技巧
+
+1. **打开 debug**
+   ```properties
+   debug=true
+   ```
+   然后按 **L**。控制台会打印每次字幕/聊天匹配尝试；触发时聊天有 `trap started` 类信息。
+
+2. **先放宽 pattern**  
+   用短关键词 + `CONTAINS`，确认能触发后再收紧。
+
+3. **确认字幕原文**  
+   不同服务器/语言的 Title 文本不同，以你屏幕上实际为准。
+
+4. **确认列表启用**
+   ```text
+   /hitwtimer list
+   ```
+
+5. **改完必重载**  
+   改 txt 后按 **L** 或 `/hitwtimer reload`。
+
+6. **HUD 看不见**  
+   按 **H** 确认未隐藏；按 **K** 看是否移出屏幕外；检查 `enabled=true`。
+
+---
+
+## 构建
 
 ```bash
 # Windows
 .\gradlew.bat build -x test
 
-# 生成的 jar 在 build/libs/hitwtimer-*.jar
+# Linux / macOS
+./gradlew build -x test
 ```
 
-把 jar 放到 mods 文件夹，启动客户端。
+产物：`build/libs/hitwtimer-*.jar`（另有 sources jar 可忽略）。
 
-首次启动会自动在 `config/hitwtimer/` 生成带完整中英双语注释的示例配置文件。
+开发调试：
 
-修改后按 `L` 热重载即可生效（推荐先把 `debug=true` 测试匹配）。
+```bash
+.\gradlew.bat runClient
+```
+
+配置会写在运行目录 `run/config/hitwtimer/`。
 
 ---
 
-## 当前实现状态与注意事项
+## 文件结构
 
-- 声音播放 (`playSound`) 在当前构建环境中被 stub（需要完整环境 + ResourceLocation / SoundManager 实现）。
-- HUD 实际绘制使用 `HudRenderer.getSnapshot()` 提供数据，真正的 `GuiGraphics` 渲染 mixin 可能需要在完整 IDE 工作区补充（代码中已有注释说明）。
-- 命令目前完整实现了 `list`（带彩色 description）；`enable`/`disable` 等可在 `HitwCommands` + `HitwConfig.setEnabledLists` 基础上扩展并持久化。
-- `auto_reload_keywords` 已解析但完整自动重载逻辑可按需补充（当前有 30s 周期重载 + 手动 L）。
-- 所有配置解析均大小写不敏感，并有良好的注释。
+```text
+hitwtimer/
+├── src/
+│   ├── main/                 # 模组入口、fabric.mod.json、语言文件
+│   └── client/
+│       ├── kotlin/...        # 配置、检测、计时、HUD、命令、编辑屏
+│       └── java/.../mixin/   # Options / Gui / Title 等 Mixin
+├── config/hitwtimer/         # 运行时配置（首次启动生成，不在源码树）
+├── README.md
+├── build.gradle.kts
+└── gradle.properties
+```
 
-更多细节见源码：
-- `ConfigLoader.kt`（模板生成 + 解析）
-- `TrapDefinition.kt`（matches 逻辑 + 文档）
-- `SubtitleDetector.kt` + `ActiveTimer.kt`
-- `HudRenderer.kt` + 三个 Mixin
+核心逻辑入口：
+
+| 路径 | 职责 |
+|------|------|
+| `HITWtimerClient.kt` | 客户端初始化、按键、tick |
+| `SubtitleDetector.kt` | 字幕/聊天匹配与启动计时 |
+| `ActiveTimer.kt` / `TimerManager.kt` | 阶段推进与音效 |
+| `HudRenderer.kt` + `GuiHudRenderMixin` | HUD 数据与绘制 |
+| `HudEditScreen.kt` | 编辑模式 |
+| `ConfigLoader.kt` | 配置解析与模板生成 |
+| `HitwCommands.kt` | `/hitwtimer` 命令 |
+
+---
+
+## 常见问题
+
+**Q: Controls 里找不到按键？**  
+A: 打开「控制 → 按键绑定」，找分类 **HITW 计时器**（中文）或 **HITWtimer**（英文）。
+
+**Q: 按 K 没反应 / 拖不动？**  
+A: 编辑必须进入 `HudEditScreen`（按 K 后应有顶部黄字提示）。在菜单界面时不会打开；请在世界内、无其它界面时按 K。
+
+**Q: 字幕出了但不计时？**  
+A: 查 `pattern`、`source`、`enabled`、列表是否在 `enabled_lists`、是否 `detect_subtitle=true`，并开 `debug=true`。
+
+**Q: Preparation 不出现？**  
+A: 是否 chat 触发？是否 `subtitle_preparation=false`？全局/列表是否关闭？
+
+**Q: 改了配置没变化？**  
+A: 必须 **L** 或 `/hitwtimer reload`。
+
+**Q: 音效没声音？**  
+A: 确认音效 ID 合法（原版注册表内），且游戏音量/UI 音量未关。
+
+**Q: 能多个列表同时用吗？**  
+A: 可以。`enabled_lists=traplist1,pvp` 或多次 `enable`。
 
 ---
 
 ## License
 
-CC0 / 基于模板。
+CC0-1.0 — 可自由使用、修改与再分发。
 
 ---
 
-**提示**：本 README 里已经嵌入了**最新完整示例**（见上文“完整示例配置文件”章节），可以直接全选复制使用。也可以从 `generated-config-examples/` 或首次运行自动生成的 `config/hitwtimer/` 目录复制，然后根据实际游戏字幕/聊天文本调整各个 trap 的 `pattern` 和 `match_mode`。
+**提示**：首次运行生成的 `config/hitwtimer/` 与 `generated-config-examples/`（若有）含带注释的模板。最稳妥的路径是：复制 falling sand 示例 → 改 `pattern` 为你服字幕原文 → `debug=true` 验证 → 关掉 debug 日常使用。
 
-有任何问题或需要扩展（更多命令、声音实现、多个同时显示的 HUD 等），欢迎继续迭代！
+如需扩展（多 HUD 并列布局、更多命令、配置 GUI 完整编辑 trap 等），可在此模组结构上继续迭代。
